@@ -70,6 +70,8 @@ jobs:
 
       - name: Upload test and lint reports
         if: always()
+        # A full artifact quota (recalculated every 6–12 h) must not fail a green check.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: check-reports
@@ -261,6 +263,8 @@ jobs:
           echo "Update server configured: $HAS_VPS"
 
       - name: Upload APK artifact
+        # The artifact is a convenience; a tag's APK goes to the Release and the update server regardless.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.APK_OUT }}
