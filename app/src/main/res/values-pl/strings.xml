@@ -61,6 +61,12 @@
     <string name="poterx_guide_empty">Przewodnik skonfiguruje się zaraz po zalogowaniu.</string>
     <string name="poterx_guide_refresh_description">Jak często przewodnik programowy jest pobierany ponownie</string>
     <string name="poterx_guide_body">Przewodnik programowy jest częścią Twojego abonamentu i konfiguruje go aplikacja. Jeśli jakiś kanał nie ma programu, odśwież przewodnik albo skontaktuj się z dostawcą.</string>
+    <plurals name="poterx_expiry_days_title">
+        <item quantity="one">Subskrypcja wygasa za %d dzień</item>
+        <item quantity="few">Subskrypcja wygasa za %d dni</item>
+        <item quantity="many">Subskrypcja wygasa za %d dni</item>
+        <item quantity="other">Subskrypcja wygasa za %d dnia</item>
+    </plurals>
     <string name="poterx_expiry_expired_title">Subskrypcja wygasła</string>
     <string name="poterx_expiry_body">Ważne do %1$s. Aby oglądać dalej, przedłuż ją u dostawcy przed tym dniem.</string>
     <string name="poterx_expiry_expired_body">Dostęp wygasł %1$s. Przedłuż go u dostawcy, aby oglądać ponownie.</string>

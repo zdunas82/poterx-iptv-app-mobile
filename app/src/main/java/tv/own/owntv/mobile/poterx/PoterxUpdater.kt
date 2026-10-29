@@ -110,7 +110,8 @@ class PoterxUpdater(
                         return@use
                     }
                     if (!resp.isSuccessful) throw CheckHttpException(resp.code)
-                    val body = resp.body.string()
+                    // OkHttp 4 here (the television is on 5): the body is nullable.
+                    val body = resp.body?.string() ?: throw InvalidResponseException()
                     val o = runCatching { JSONObject(body) }.getOrElse { throw InvalidResponseException() }
                     val found = Release(
                         versionCode = o.optInt("versionCode", 0).takeIf { it > 0 } ?: throw InvalidResponseException(),
@@ -150,7 +151,7 @@ class PoterxUpdater(
                 try {
                     safeClient.newCall(request).execute().use { resp ->
                         if (!resp.isSuccessful) throw DownloadHttpException(resp.code)
-                        val body = resp.body
+                        val body = resp.body ?: throw EmptyDownloadException()
                         val total = body.contentLength()
                         if (total > 0 && dir.usableSpace < total * 2) throw NotEnoughSpaceException(total * 2)
                         val digest = MessageDigest.getInstance("SHA-256")

@@ -110,12 +110,12 @@ object PoterxDefaults {
      * the next sync, which left the row missing for hours. A playlist whose row was never built is
      * asked again shortly after start; a built row is left to core's own schedule.
      */
-    fun ensureTrending(scope: CoroutineScope, sourceDao: SourceDao, database: tv.own.owntv.core.database.OwnTVDatabase, scheduler: tv.own.owntv.core.sync.work.CatalogSyncScheduler) {
+    fun ensureTrending(scope: CoroutineScope, sourceDao: SourceDao, dao: tv.own.owntv.core.database.dao.TrendingDao, scheduler: tv.own.owntv.core.sync.work.CatalogSyncScheduler) {
         if (!LockedSource.enabled) return
         scope.launch {
             kotlinx.coroutines.delay(TRENDING_START_DELAY_MS)
             runCatching {
-                val dao = database.trendingDao()
+                // The DAO straight from Koin: this app has no Room on its own classpath, so the database type is out of reach.
                 sourceDao.getAllOnce().filter { it.type == SourceType.XTREAM }.forEach { source ->
                     val state = dao.getState(source.id)
                     if (state == null || state.status == tv.own.owntv.core.database.entity.TrendingSnapshotStatus.NEVER_BUILT) {
