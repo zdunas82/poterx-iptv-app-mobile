@@ -345,11 +345,18 @@ private fun ProgrammeCell(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(Modifier.padding(top = 1.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Poterx: on a phone a half-hour cell is ~70 dp, narrower than "20:30 – 21:00" at this size, which
+            // left "20:3" on screen. A narrow cell shows the start time only; a sliver shows no time at all.
+            val timeText = when {
+                width < NARROW_CELL -> null
+                width < SHORT_CELL -> times.format(Date(programme.startMs))
+                else -> stringResource(R.string.content_live_time_range_plain, times.format(Date(programme.startMs)), times.format(Date(programme.stopMs)))
+            }
+            if (timeText != null) Row(Modifier.padding(top = 1.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (recording) Text("●", style = stageText(10f, 700), color = RecordRed, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (catchup) StageIcon(MobileIcons.Catchup, 11.dp, small)
                 Text(
-                    stringResource(R.string.content_live_time_range_plain, times.format(Date(programme.startMs)), times.format(Date(programme.stopMs))),
+                    timeText,
                     style = stageText(10f, 500).copy(fontFeatureSettings = "tnum"),
                     color = small,
                     maxLines = 1,
@@ -483,6 +490,9 @@ private val RULER = 26.dp
 private val ROW_HEIGHT = 50.dp
 private val ROW_GAP = 4.dp
 private val CELL_INSET = 2.dp
+/** Below this a cell has no room for a time at all; below [SHORT_CELL] only the start time fits. */
+private val NARROW_CELL = 40.dp
+private val SHORT_CELL = 104.dp
 /** The least of a cell its text keeps when it slides along a half-hidden cell. */
 private val STICKY_MIN_ROOM = 60.dp
 private val RecordRed = Color(0xFFFF5B5B)

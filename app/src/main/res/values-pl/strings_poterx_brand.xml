@@ -2,64 +2,64 @@
 <!-- Poterx: core strings that name the app, re-said with our name. Generated from OwnTV_Core
      values-pl at core 1.0.69; regenerate after a core bump (docs/poterx/PLAN.md). -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_icon_restart_message">Wybrano nową ikonę i logo. Zostaną zastosowane po ponownym uruchomieniu Poterx TV.</string>
-    <string name="app_icon_restart_title">Uruchomić ponownie Poterx TV?</string>
-    <string name="common_own_tv_user">Użytkownik Poterx TV</string>
-    <string name="companion_add_page_title">Poterx TV — dodaj źródło</string>
-    <string name="companion_backup_description">Wybierz plik kopii zapasowej Poterx TV (.own lub starszy .json) i naciśnij Wyślij. Zostanie przesłany do telewizora — weź pilot i wybierz tam elementy, które chcesz przywrócić.</string>
-    <string name="companion_backup_page_title">Poterx TV — przywróć kopię zapasową</string>
-    <string name="companion_download_description">Telewizor przygotował plik kopii zapasowej Poterx TV. Dotknij przycisku, aby zapisać go na tym urządzeniu (owntv-backup.own). Przechowuj go w bezpiecznym miejscu — później możesz z niego przywrócić dane.</string>
-    <string name="companion_download_page_title">Poterx TV — pobierz kopię zapasową</string>
-    <string name="companion_image_page_title">Poterx TV — obraz tła</string>
-    <string name="companion_pin_page_title">Poterx TV — wpisz PIN</string>
-    <string name="companion_saved_page_title">Poterx TV — wysłano</string>
-    <string name="content_epg_own_player">Odtwarzacz Poterx TV</string>
-    <string name="content_exit_owntv">Wyjść z Poterx TV?</string>
-    <string name="content_storage_folder_fallback">Folder pobierania jest teraz niedostępny, więc pobrane pliki są zapisywane we własnym folderze Poterx TV, dopóki nie wróci.</string>
-    <string name="local_sync_browser_body">Ten adres jest dla aplikacji Poterx TV na drugim urządzeniu. Otwórz tam Synchronizację lokalną i wybierz to urządzenie z listy.</string>
-    <string name="local_sync_browser_title">Synchronizacja lokalna Poterx TV</string>
-    <string name="local_sync_error_unreachable">Nie udało się połączyć z tym urządzeniem. Otwórz na nim Poterx TV → Więcej → Synchronizacja lokalna i włącz Tryb synchronizacji. Oba urządzenia muszą być w tej samej sieci Wi-Fi.</string>
-    <string name="player_trailer_blocked_title">Tego zwiastuna nie można odtworzyć w Poterx TV</string>
-    <string name="recording_failed_drm">Ten kanał jest chroniony przez DRM, więc można go oglądać, ale nie nagrywać. Ochronę stosuje Twój dostawca, a nie Poterx TV.</string>
-    <string name="recovery_title">Poterx TV nie mogła otworzyć swojej bazy danych</string>
-    <string name="settings_app_icon_sheet_mobile">Jak Poterx TV wygląda na Twoim ekranie głównym. Aplikacja uruchomi się ponownie raz.</string>
-    <string name="settings_app_icon_summary">Kolor ikony i logo Poterx TV</string>
-    <string name="settings_app_startup_description">Ekran otwierany przy uruchamianiu Poterx TV</string>
-    <string name="settings_auto_frame_rate_warning_description">To urządzenie działa na Androidzie <xliff:g id="android_version">%1$s</xliff:g>. Na Androidzie poniżej 12 telewizor nie może przekazać Poterx TV, na które częstotliwości odświeżania może płynnie przełączać, więc zmiana częstotliwości może sprawić, że ekran zgaśnie na sekundę lub dwie — czasem więcej niż raz podczas programu.\n\nZalecamy pozostawienie tutaj automatycznej częstotliwości odświeżania wyłączonej. Jeśli telewizor przełącza ją bez zakłóceń, włącz ją i zobacz: w każdej chwili możesz ją z powrotem wyłączyć.</string>
-    <string name="settings_auto_frame_rate_warning_description_mobile">To urządzenie działa na Androidzie <xliff:g id="android_version">%1$s</xliff:g>. Na Androidzie poniżej 12 urządzenie nie może przekazać Poterx TV, na które częstotliwości odświeżania może płynnie przełączać, więc zmiana częstotliwości może sprawić, że ekran zgaśnie na sekundę lub dwie — czasem więcej niż raz podczas programu.\n\nZalecamy pozostawienie tutaj automatycznej częstotliwości odświeżania wyłączonej. Jeśli ekran przełącza ją bez zakłóceń, włącz ją i zobacz: w każdej chwili możesz ją z powrotem wyłączyć.</string>
-    <string name="settings_catchup_player_internal">Odtwarzacz Poterx TV</string>
-    <string name="settings_dns_toggle_description">Wykonuj wszystkie zapytania DNS aplikacji Poterx TV za pośrednictwem niestandardowego serwera DNS.</string>
-    <string name="settings_ffmpeg_audio_description">Włączone: ExoPlayer może też dekodować dźwięk, dla którego urządzenie nie ma dekodera, np. DTS, TrueHD lub MP2. Własne dekodery urządzenia nadal mają pierwszeństwo. Wyłączone: ExoPlayer używa tylko dekoderów urządzenia. mpv zawsze dekoduje przez FFmpeg. Zmiana uruchamia Poterx TV ponownie.</string>
-    <string name="settings_ffmpeg_audio_restart_message">Dekoder dźwięku zmieni się po ponownym uruchomieniu Poterx TV.</string>
-    <string name="settings_help_app_icon">Ikona Poterx TV na ekranie głównym telewizora. Launcher może potrzebować chwili, aby pokazać zmianę.</string>
-    <string name="settings_help_bg_background">Stage pokazuje własne łagodne kolory Poterx TV. Obraz pokazuje Twój obraz za każdym ekranem. Gładkie to płaskie ciemne tło.</string>
-    <string name="settings_help_brand_accent">Logo Poterx TV w menu, w sekcji Informacje i w konfiguracji pokazuje trójkąt odtwarzania w Twoim kolorze akcentu. Ikona na ekranie głównym zachowuje swoje kolory.</string>
-    <string name="settings_help_check_updates">Sprawdza teraz, czy jest nowsza wersja Poterx TV, i proponuje instalację. Kanały, ulubione i ustawienia pozostają bez zmian.</string>
-    <string name="settings_help_fonts">Czcionka używana w całym Poterx TV i rozmiar tekstu. Okienka używają tej samej czcionki.</string>
-    <string name="settings_help_startup">Co Poterx TV pokazuje po uruchomieniu: stronę główną, ostatnio oglądany kanał, ulubione lub wybrany kanał.</string>
-    <string name="settings_help_theme">Poterx TV jest zaprojektowany z myślą o ciemnym motywie. Systemowy wybiera ustawienie telewizora, jeśli je ma; jasny pasuje do jasnego pokoju.</string>
-    <string name="settings_help_update_startup">Przy każdym uruchomieniu Poterx TV szuka nowej wersji i informuje, gdy jest dostępna. Nic nie jest instalowane bez pytania.</string>
-    <string name="settings_language_pick_help">Używaj języka <xliff:g id="language">%1$s</xliff:g> w Poterx TV, niezależnie od języka telewizora.</string>
-    <string name="settings_language_system_help">Poterx TV używa języka telewizora (teraz <xliff:g id="language">%1$s</xliff:g>). Wybierz poniżej język, aby używać go tylko w Poterx TV.</string>
-    <string name="settings_live_tune_timeout_description">Jeśli w tym czasie kanał na żywo nie pokaże obrazu, Poterx TV przestanie próbować i powie Ci o tym, zamiast zostawiać czarny ekran, przechodząc po kolei przez wszystkie swoje odtwarzacze. „Nigdy” próbuje dalej, co na kanale usuniętym przez dostawcę może zająć znacznie ponad minutę. Oczekiwanie, o które prosi sam dostawca, nie jest wliczane.</string>
-    <string name="settings_proxy_description">Przesyłaj cały ruch Poterx TV i odtwarzanie przez serwer proxy HTTP.</string>
-    <string name="settings_recording_timers_inexact">To urządzenie nie pozwala aplikacji Poterx TV ustawiać dokładnych alarmów, więc nagranie może zacząć się kilka minut później. Nagrania startują wcześniej, aby to nadrobić.</string>
-    <string name="settings_restore_remote_description">Na dowolnym urządzeniu z przeglądarką w tej samej sieci Wi-Fi — telefonie, komputerze lub innym telewizorze — zeskanuj kod QR (lub otwórz adres), wpisz ten PIN, wybierz plik kopii Poterx TV i wyślij go. Potem wybierzesz tutaj, co przywrócić.</string>
-    <string name="settings_sources_probe_unknown">Poterx TV nie zdołał ustalić, ile kanałów dopuszcza ten dostawca.</string>
-    <string name="settings_sources_probe_warning">Wielu dostawców nigdy nie podaje, ile kanałów można oglądać jednocześnie, więc Poterx TV sprawdza to, otwierając kilka i obserwując, które przetrwają. Wszystko, co jest teraz odtwarzane, zostanie zatrzymane, a może to potrwać do dwóch minut.</string>
-    <string name="settings_surround_forced_description">Dźwięk przestrzenny — wysyłaj Dolby/DTS do prawdziwego amplitunera 5.1/7.1. Jeśli zrobi się cicho albo zacznie się zacinać, Poterx TV i tak wróci do stereo i poinformuje o tym.</string>
-    <string name="setup_byo_source_description">Poterx TV jest odtwarzaczem — dodaj własne źródło Xtream, M3U lub Stalker.</string>
-    <string name="setup_disclaimer">Poterx TV jest wyłącznie odtwarzaczem multimedialnym. Nie zawiera żadnych kanałów, list odtwarzania ani treści. Odpowiadasz za dodawanie własnych, legalnie dostępnych źródeł Xtream, M3U lub Stalker.</string>
-    <string name="setup_line_app_icon">Jak Poterx TV wygląda na ekranie głównym telewizora</string>
-    <string name="setup_line_app_icon_mobile">Jak Poterx TV wygląda na Twoim ekranie głównym</string>
-    <string name="setup_set_up_owntv">Skonfiguruj Poterx TV</string>
-    <string name="setup_sync_device_description">Skopiuj wszystko z drugiego urządzenia Poterx TV przez Wi-Fi</string>
-    <string name="setup_welcome_title">Witamy w Poterx TV</string>
-    <string name="sports_alerts_footnote">Przy zamkniętym Poterx TV alerty zwykle przychodzą w ciągu minuty. Jeśli telefon długo leży bez ruchu z wyłączonym ekranem, Android może je wstrzymać nawet na około 15 minut. Karta wyniku na żywo nie jest wstrzymywana.</string>
-    <string name="sports_alerts_when_closed">Alerty przy zamkniętym Poterx TV</string>
-    <string name="sports_no_playlist_body">Wyniki, tabele i alerty działają bez niej. Z playlistą Poterx TV znajdzie każdy kanał pokazujący ten mecz.</string>
-    <string name="sports_sport_buttons_description">Moje sporty: tylko to, co wybrano. Wszystkie sporty: każda liga znana Poterx TV, co wydłuża wczytywanie.</string>
-    <string name="update_ready">Poterx TV v<xliff:g id="available">%1$s</xliff:g> jest gotowa (masz v<xliff:g id="current">%2$s</xliff:g>).</string>
+    <string name="app_icon_restart_message">Wybrano nową ikonę i logo. Zostaną zastosowane po ponownym uruchomieniu Poterx.</string>
+    <string name="app_icon_restart_title">Uruchomić ponownie Poterx?</string>
+    <string name="common_own_tv_user">Użytkownik Poterx</string>
+    <string name="companion_add_page_title">Poterx — dodaj źródło</string>
+    <string name="companion_backup_description">Wybierz plik kopii zapasowej Poterx (.own lub starszy .json) i naciśnij Wyślij. Zostanie przesłany do telewizora — weź pilot i wybierz tam elementy, które chcesz przywrócić.</string>
+    <string name="companion_backup_page_title">Poterx — przywróć kopię zapasową</string>
+    <string name="companion_download_description">Telewizor przygotował plik kopii zapasowej Poterx. Dotknij przycisku, aby zapisać go na tym urządzeniu (owntv-backup.own). Przechowuj go w bezpiecznym miejscu — później możesz z niego przywrócić dane.</string>
+    <string name="companion_download_page_title">Poterx — pobierz kopię zapasową</string>
+    <string name="companion_image_page_title">Poterx — obraz tła</string>
+    <string name="companion_pin_page_title">Poterx — wpisz PIN</string>
+    <string name="companion_saved_page_title">Poterx — wysłano</string>
+    <string name="content_epg_own_player">Odtwarzacz Poterx</string>
+    <string name="content_exit_owntv">Wyjść z Poterx?</string>
+    <string name="content_storage_folder_fallback">Folder pobierania jest teraz niedostępny, więc pobrane pliki są zapisywane we własnym folderze Poterx, dopóki nie wróci.</string>
+    <string name="local_sync_browser_body">Ten adres jest dla aplikacji Poterx na drugim urządzeniu. Otwórz tam Synchronizację lokalną i wybierz to urządzenie z listy.</string>
+    <string name="local_sync_browser_title">Synchronizacja lokalna Poterx</string>
+    <string name="local_sync_error_unreachable">Nie udało się połączyć z tym urządzeniem. Otwórz na nim Poterx → Więcej → Synchronizacja lokalna i włącz Tryb synchronizacji. Oba urządzenia muszą być w tej samej sieci Wi-Fi.</string>
+    <string name="player_trailer_blocked_title">Tego zwiastuna nie można odtworzyć w Poterx</string>
+    <string name="recording_failed_drm">Ten kanał jest chroniony przez DRM, więc można go oglądać, ale nie nagrywać. Ochronę stosuje Twój dostawca, a nie Poterx.</string>
+    <string name="recovery_title">Poterx nie mogła otworzyć swojej bazy danych</string>
+    <string name="settings_app_icon_sheet_mobile">Jak Poterx wygląda na Twoim ekranie głównym. Aplikacja uruchomi się ponownie raz.</string>
+    <string name="settings_app_icon_summary">Kolor ikony i logo Poterx</string>
+    <string name="settings_app_startup_description">Ekran otwierany przy uruchamianiu Poterx</string>
+    <string name="settings_auto_frame_rate_warning_description">To urządzenie działa na Androidzie <xliff:g id="android_version">%1$s</xliff:g>. Na Androidzie poniżej 12 telewizor nie może przekazać Poterx, na które częstotliwości odświeżania może płynnie przełączać, więc zmiana częstotliwości może sprawić, że ekran zgaśnie na sekundę lub dwie — czasem więcej niż raz podczas programu.\n\nZalecamy pozostawienie tutaj automatycznej częstotliwości odświeżania wyłączonej. Jeśli telewizor przełącza ją bez zakłóceń, włącz ją i zobacz: w każdej chwili możesz ją z powrotem wyłączyć.</string>
+    <string name="settings_auto_frame_rate_warning_description_mobile">To urządzenie działa na Androidzie <xliff:g id="android_version">%1$s</xliff:g>. Na Androidzie poniżej 12 urządzenie nie może przekazać Poterx, na które częstotliwości odświeżania może płynnie przełączać, więc zmiana częstotliwości może sprawić, że ekran zgaśnie na sekundę lub dwie — czasem więcej niż raz podczas programu.\n\nZalecamy pozostawienie tutaj automatycznej częstotliwości odświeżania wyłączonej. Jeśli ekran przełącza ją bez zakłóceń, włącz ją i zobacz: w każdej chwili możesz ją z powrotem wyłączyć.</string>
+    <string name="settings_catchup_player_internal">Odtwarzacz Poterx</string>
+    <string name="settings_dns_toggle_description">Wykonuj wszystkie zapytania DNS aplikacji Poterx za pośrednictwem niestandardowego serwera DNS.</string>
+    <string name="settings_ffmpeg_audio_description">Włączone: ExoPlayer może też dekodować dźwięk, dla którego urządzenie nie ma dekodera, np. DTS, TrueHD lub MP2. Własne dekodery urządzenia nadal mają pierwszeństwo. Wyłączone: ExoPlayer używa tylko dekoderów urządzenia. mpv zawsze dekoduje przez FFmpeg. Zmiana uruchamia Poterx ponownie.</string>
+    <string name="settings_ffmpeg_audio_restart_message">Dekoder dźwięku zmieni się po ponownym uruchomieniu Poterx.</string>
+    <string name="settings_help_app_icon">Ikona Poterx na ekranie głównym telewizora. Launcher może potrzebować chwili, aby pokazać zmianę.</string>
+    <string name="settings_help_bg_background">Stage pokazuje własne łagodne kolory Poterx. Obraz pokazuje Twój obraz za każdym ekranem. Gładkie to płaskie ciemne tło.</string>
+    <string name="settings_help_brand_accent">Logo Poterx w menu, w sekcji Informacje i w konfiguracji pokazuje trójkąt odtwarzania w Twoim kolorze akcentu. Ikona na ekranie głównym zachowuje swoje kolory.</string>
+    <string name="settings_help_check_updates">Sprawdza teraz, czy jest nowsza wersja Poterx, i proponuje instalację. Kanały, ulubione i ustawienia pozostają bez zmian.</string>
+    <string name="settings_help_fonts">Czcionka używana w całym Poterx i rozmiar tekstu. Okienka używają tej samej czcionki.</string>
+    <string name="settings_help_startup">Co Poterx pokazuje po uruchomieniu: stronę główną, ostatnio oglądany kanał, ulubione lub wybrany kanał.</string>
+    <string name="settings_help_theme">Poterx jest zaprojektowany z myślą o ciemnym motywie. Systemowy wybiera ustawienie telewizora, jeśli je ma; jasny pasuje do jasnego pokoju.</string>
+    <string name="settings_help_update_startup">Przy każdym uruchomieniu Poterx szuka nowej wersji i informuje, gdy jest dostępna. Nic nie jest instalowane bez pytania.</string>
+    <string name="settings_language_pick_help">Używaj języka <xliff:g id="language">%1$s</xliff:g> w Poterx, niezależnie od języka telewizora.</string>
+    <string name="settings_language_system_help">Poterx używa języka telewizora (teraz <xliff:g id="language">%1$s</xliff:g>). Wybierz poniżej język, aby używać go tylko w Poterx.</string>
+    <string name="settings_live_tune_timeout_description">Jeśli w tym czasie kanał na żywo nie pokaże obrazu, Poterx przestanie próbować i powie Ci o tym, zamiast zostawiać czarny ekran, przechodząc po kolei przez wszystkie swoje odtwarzacze. „Nigdy” próbuje dalej, co na kanale usuniętym przez dostawcę może zająć znacznie ponad minutę. Oczekiwanie, o które prosi sam dostawca, nie jest wliczane.</string>
+    <string name="settings_proxy_description">Przesyłaj cały ruch Poterx i odtwarzanie przez serwer proxy HTTP.</string>
+    <string name="settings_recording_timers_inexact">To urządzenie nie pozwala aplikacji Poterx ustawiać dokładnych alarmów, więc nagranie może zacząć się kilka minut później. Nagrania startują wcześniej, aby to nadrobić.</string>
+    <string name="settings_restore_remote_description">Na dowolnym urządzeniu z przeglądarką w tej samej sieci Wi-Fi — telefonie, komputerze lub innym telewizorze — zeskanuj kod QR (lub otwórz adres), wpisz ten PIN, wybierz plik kopii Poterx i wyślij go. Potem wybierzesz tutaj, co przywrócić.</string>
+    <string name="settings_sources_probe_unknown">Poterx nie zdołał ustalić, ile kanałów dopuszcza ten dostawca.</string>
+    <string name="settings_sources_probe_warning">Wielu dostawców nigdy nie podaje, ile kanałów można oglądać jednocześnie, więc Poterx sprawdza to, otwierając kilka i obserwując, które przetrwają. Wszystko, co jest teraz odtwarzane, zostanie zatrzymane, a może to potrwać do dwóch minut.</string>
+    <string name="settings_surround_forced_description">Dźwięk przestrzenny — wysyłaj Dolby/DTS do prawdziwego amplitunera 5.1/7.1. Jeśli zrobi się cicho albo zacznie się zacinać, Poterx i tak wróci do stereo i poinformuje o tym.</string>
+    <string name="setup_byo_source_description">Poterx jest odtwarzaczem — dodaj własne źródło Xtream, M3U lub Stalker.</string>
+    <string name="setup_disclaimer">Poterx jest wyłącznie odtwarzaczem multimedialnym. Nie zawiera żadnych kanałów, list odtwarzania ani treści. Odpowiadasz za dodawanie własnych, legalnie dostępnych źródeł Xtream, M3U lub Stalker.</string>
+    <string name="setup_line_app_icon">Jak Poterx wygląda na ekranie głównym telewizora</string>
+    <string name="setup_line_app_icon_mobile">Jak Poterx wygląda na Twoim ekranie głównym</string>
+    <string name="setup_set_up_owntv">Skonfiguruj Poterx</string>
+    <string name="setup_sync_device_description">Skopiuj wszystko z drugiego urządzenia Poterx przez Wi-Fi</string>
+    <string name="setup_welcome_title">Witamy w Poterx</string>
+    <string name="sports_alerts_footnote">Przy zamkniętym Poterx alerty zwykle przychodzą w ciągu minuty. Jeśli telefon długo leży bez ruchu z wyłączonym ekranem, Android może je wstrzymać nawet na około 15 minut. Karta wyniku na żywo nie jest wstrzymywana.</string>
+    <string name="sports_alerts_when_closed">Alerty przy zamkniętym Poterx</string>
+    <string name="sports_no_playlist_body">Wyniki, tabele i alerty działają bez niej. Z playlistą Poterx znajdzie każdy kanał pokazujący ten mecz.</string>
+    <string name="sports_sport_buttons_description">Moje sporty: tylko to, co wybrano. Wszystkie sporty: każda liga znana Poterx, co wydłuża wczytywanie.</string>
+    <string name="update_ready">Poterx v<xliff:g id="available">%1$s</xliff:g> jest gotowa (masz v<xliff:g id="current">%2$s</xliff:g>).</string>
     <!-- Poterx v0.2.1: the About page, updates, metadata and translation texts without the upstream project's name, group or repository. -->
     <string name="more_about_description">Aplikacja telewizyjna Twojego dostawcy na Android TV: kanały, przewodnik i archiwum z jednego konta. Logujesz się raz, aktualizacje instalują się same.</string>
     <string name="more_about_description_mobile">Aplikacja telewizyjna Twojego dostawcy na telefon i tablet z Androidem: kanały, przewodnik i archiwum z jednego konta. Logujesz się raz, aktualizacje instalują się same.</string>

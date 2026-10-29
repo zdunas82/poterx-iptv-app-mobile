@@ -100,15 +100,9 @@ class PoterxUpdater(
                     .header("Cache-Control", "no-cache")
                     .build()
                 safeClient.newCall(request).execute().use { resp ->
-                    // No manifest on this channel yet (nothing promoted so far) is "nothing to offer",
-                    // not a failure to show at start.
-                    if (resp.code == 404) {
-                        settings.recordUpdateCheck(System.currentTimeMillis())
-                        release = null
-                        _required.value = false
-                        _state.value = State.UpToDate
-                        return@use
-                    }
+                    // No manifest on this channel (nothing promoted yet, a server misconfigured) is a failed
+                    // check, shown as "HTTP 404": "you are up to date" would hide a dead update server.
+                    // The startup check is silent on failure anyway; only "Check now" shows it.
                     if (!resp.isSuccessful) throw CheckHttpException(resp.code)
                     // OkHttp 4 here (the television is on 5): the body is nullable.
                     val body = resp.body?.string() ?: throw InvalidResponseException()

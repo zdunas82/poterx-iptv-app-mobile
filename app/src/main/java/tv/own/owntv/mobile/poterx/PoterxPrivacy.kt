@@ -71,7 +71,7 @@ object PoterxPrivacy {
         val app = context.applicationContext
         val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
         val text = buildString {
-            appendLine("Poterx TV playback report")
+            appendLine("Poterx playback report")
             appendLine("${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
             appendLine("Exported ${stamp.format(java.util.Date())}")
             appendLine()

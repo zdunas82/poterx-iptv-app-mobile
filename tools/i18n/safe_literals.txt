@@ -116,7 +116,7 @@
 1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	--- last crash ---
 1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	--- live diagnostics (most recent) ---
 1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	Exported ${stamp.format(java.util.Date())}
-1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	Poterx TV playback report
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	Poterx playback report
 1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	[${stamp.format(java.util.Date(e.atMs))}] ${e.kind} · ${e.engine} · ${if (e.live) "live" else "vod"}
 1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	[^\\s"']*
 1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	live
