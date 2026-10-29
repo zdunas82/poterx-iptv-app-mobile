@@ -137,7 +137,7 @@ class GuideViewModel(
     private val custom: StateFlow<SectionCustomizations> = ctx
         .flatMapLatest { c ->
             if (c.profileId < 0) flowOf(SectionCustomizations())
-            else customize.observeVisible(c.profileId, MediaType.LIVE)
+            else customize.observe(c.profileId, MediaType.LIVE)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SectionCustomizations())
 

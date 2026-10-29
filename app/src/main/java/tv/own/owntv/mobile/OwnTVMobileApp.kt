@@ -58,10 +58,6 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
      * SharedPreferences-backed store, because DataStore cannot be read here.
      */
     override fun attachBaseContext(base: Context) {
-        // Poterx: the sealed account opens with this package's signature; the context comes first.
-        tv.own.owntv.mobile.poterx.LockedSource.attach(base)
-        // Poterx: a locked build starts in Polish unless a language was already chosen.
-        tv.own.owntv.mobile.poterx.PoterxDefaults.applyLocale(base)
         val tag = LocaleStore.from(base).readBlocking()
         AppLocale.applyGlobally(tag)
         super.attachBaseContext(AppLocale.wrap(base, tag))
@@ -101,9 +97,7 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
         // This app's own releases, not the television's. Left at its default, an update check here
         // would offer OwnTV-v*.apk — a different applicationId, which the installer refuses after
         // the whole download.
-        // Poterx: a locked build with an update server built in never asks GitHub at all (PoterxUpdater);
-        // without one, the in-app updater asks THIS repository's Releases, never OwnTV's.
-        CoreBuildInfo.releaseRepo = "zdunas82/poterx-iptv-app-mobile"
+        CoreBuildInfo.releaseRepo = "ahXN00/OwnTV_Mobile"
         // Fixed for this process before any player exists: the setting applies only after a restart.
         tv.own.owntv.core.player.FfmpegAudioSetting.load(this)
         // First thing after the context exists: a crash from here on leaves a trace on disk instead
@@ -202,8 +196,6 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
             scope = appScope,
             reminders = org.koin.core.context.GlobalContext.get().get(),
             settings = org.koin.core.context.GlobalContext.get().get(),
-            customize = org.koin.core.context.GlobalContext.get().get(),
-            channels = org.koin.core.context.GlobalContext.get().get(),
         )
         // A new user starts on Stage with glass on; an existing install keeps its look.
         appScope.launch {
@@ -211,26 +203,6 @@ class OwnTVMobileApp : Application(), androidx.work.Configuration.Provider {
                 org.koin.core.context.GlobalContext.get().get<tv.own.owntv.core.settings.SettingsRepository>().applyPhoneStageDefaults(
                     tv.own.owntv.mobile.ui.screens.settings.PHONE_GLASS_DEFAULT_PCT,
                 )
-            }
-        }
-        // Poterx: what a locked build does at every start, the television's list without the VPN.
-        GlobalContext.get().let { koin ->
-            // Weather and the Sports Hub's background work off until the user turns them on; the provider's TMDB key.
-            tv.own.owntv.mobile.poterx.PoterxDefaults.applyModules(this, appScope, koin.get(), koin.get(), koin.get())
-            // The playlist carries this app's identity (User-Agent), also after an update.
-            appScope.launch { runCatching { tv.own.owntv.mobile.poterx.PoterxAccount.ensureUserAgent(koin.get(), koin.get()) } }
-            // A Trending row whose first download failed gets another go.
-            tv.own.owntv.mobile.poterx.PoterxDefaults.ensureTrending(appScope, koin.get(), koin.get(), koin.get())
-            // Once a day the server learns this install is alive; a crash is reported once.
-            runCatching { koin.get<tv.own.owntv.mobile.poterx.PoterxTelemetry>().start() }
-            appScope.launch {
-                // Empty profiles left by an interrupted sign-in are removed, all but one, so the
-                // "Who's watching?" gate stops listing them.
-                runCatching { tv.own.owntv.mobile.poterx.PoterxAccount.pruneEmptyProfiles(koin.get(), koin.get(), koin.get()) }
-                // Playlists of a profile deleted earlier (a second list) go too, with their guide feed.
-                runCatching { tv.own.owntv.mobile.poterx.PoterxAccount.pruneOrphanSources(koin.get(), koin.get(), koin.get(), koin.get(), koin.get(), koin.get(), koin.get()) }
-                // Then the guide: the panel's feed registered and refreshing, whatever version this install started on.
-                tv.own.owntv.mobile.poterx.PoterxDefaults.ensureGuide(appScope, koin.get(), koin.get(), koin.get(), koin.get())
             }
         }
     }

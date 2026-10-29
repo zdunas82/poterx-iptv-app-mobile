@@ -170,12 +170,7 @@ private fun sourcesSections(vm: SettingsViewModel): List<SettingSection> {
     return listOfNotNull(
         SettingSection(
             stringResource(R.string.settings_sources_title),
-            listOfNotNull(
-                // Poterx: the built-in account first on a locked build; a stock build has no such row.
-                if (tv.own.owntv.mobile.poterx.LockedSource.enabled) pageItem(
-                    "tab_ACCOUNT", MobileIcons.Person, stringResource(R.string.poterx_account_title),
-                    stringResource(R.string.poterx_account_description), null, SettingsLeaf.ACCOUNT.route,
-                ) else null,
+            listOf(
                 pageItem(
                     "tab_SOURCES", MobileIcons.Layers, stringResource(R.string.settings_playlists),
                     stringResource(R.string.settings_line_playlists_mobile),
@@ -597,7 +592,7 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
     return listOf(
         SettingSection(
             stringResource(R.string.settings_app_group),
-            listOfNotNull(
+            listOf(
                 pageItem(
                     "tab_SPORTS", MobileIcons.Sports, stringResource(R.string.sports_title), stringResource(R.string.sports_leagues),
                     null, SettingsLeaf.SPORTS.route,
@@ -606,8 +601,7 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
                     "tab_LANGUAGE", MobileIcons.Translate, stringResource(R.string.settings_language), stringResource(R.string.settings_language_description),
                     localeLabel(tag), SettingsLeaf.LANGUAGE.route,
                 ),
-                // Poterx: a locked build ships one icon, the provider's; the colour picker would swap it for OwnTV's.
-                if (tv.own.owntv.mobile.poterx.LockedSource.enabled) null else SettingItem(
+                SettingItem(
                     "app_icon", MobileIcons.Palette, stringResource(R.string.settings_app_icon), stringResource(R.string.settings_line_app_icon),
                     SettingValue.Opens(stringResource(appIcon.label)),
                     sheet = { dismiss -> AppIconSheet(chosen = appIcon, onPick = { vm.edit { setAppIcon(it) } }, onDismiss = dismiss) },
@@ -759,8 +753,6 @@ private fun localeLabel(tag: String): String =
 private fun StartupMode.startupLabel() = when (this) {
     StartupMode.HOME -> R.string.settings_startup_home
     StartupMode.LAST_CHANNEL -> R.string.settings_startup_last_channel
-    StartupMode.LAST_CHANNEL_GUIDE -> R.string.settings_startup_last_channel_guide
-    StartupMode.LAST_CHANNEL_LIVE -> R.string.settings_startup_last_channel_live
     StartupMode.FAVORITES -> R.string.settings_startup_favorites
     StartupMode.SPECIFIC_CHANNEL -> R.string.settings_startup_specific_channel
 }

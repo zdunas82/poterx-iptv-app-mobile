@@ -73,7 +73,6 @@ import tv.own.owntv.mobile.ui.screens.home.formatRating
 import tv.own.owntv.mobile.ui.screens.home.formatYear
 import tv.own.owntv.mobile.ui.screens.live.CategoryRestoreConfirm
 import tv.own.owntv.mobile.ui.screens.live.LiveCategoryMenu
-import tv.own.owntv.core.categorylock.SealedCategoryAction
 import tv.own.owntv.mobile.ui.shell.ProvidePageCrumb
 import tv.own.owntv.mobile.ui.shell.PageCrumb
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
@@ -162,9 +161,6 @@ fun LibraryScreen(
     var categoriesOpen by remember { mutableStateOf(false) }
     var categoryMenuFor by remember { mutableStateOf<VodCategory?>(null) }
     var restoreFor by remember { mutableStateOf<VodCategory?>(null) }
-    val lock = tv.own.owntv.mobile.ui.categorylock.rememberCategoryLock(
-        if (tab == LibraryTab.MOVIES) tv.own.owntv.core.model.MediaType.MOVIE else tv.own.owntv.core.model.MediaType.SERIES,
-    )
 
     val twoPane = isExpandedWidth()
     // Beside the grid, something is always open: the pane is a preview of the grid, so it falls back
@@ -198,9 +194,7 @@ fun LibraryScreen(
 
     // The header's crumb: "‹ Disney+ Kids Movies · 136 titles", a tap opens the categories.
     val categoryLabel = categories.firstOrNull { it.key == selected }?.label(tab).orEmpty()
-    // A category the PIN has not opened names no count: how much it holds is the lock's business.
-    val countText = if (categories.firstOrNull { it.key == selected }?.sealed == true) null
-    else groupedCountText(if (movies) R.plurals.content_vod_title_count else R.plurals.content_vod_series_count, count)
+    val countText = groupedCountText(if (movies) R.plurals.content_vod_title_count else R.plurals.content_vod_series_count, count)
     ProvidePageCrumb { owner -> PageCrumb(categoryLabel, countText, owner = owner) { categoriesOpen = true } }
 
     // A show's list row says how many seasons it has — read for the rows on screen only.
@@ -266,9 +260,7 @@ fun LibraryScreen(
         }
         // Empty only once the first page has actually come back — otherwise every category change
         // flashes "No movies here" for as long as the query takes on a 170k-title catalogue.
-        if (categories.firstOrNull { it.key == selected }?.sealed == true) {
-            tv.own.owntv.mobile.ui.categorylock.LockedCategoryState(onEnterPin = { lock.enterPin(selected) })
-        } else if (items.itemCount == 0 && items.loadState.refresh !is LoadState.Loading) {
+        if (items.itemCount == 0 && items.loadState.refresh !is LoadState.Loading) {
             EmptyLibrary(tab, query)
         } else if (viewMode == SettingsRepository.VodViewMode.LIST) {
             LazyColumn(
@@ -386,15 +378,10 @@ fun LibraryScreen(
         LiveCategoryMenu(
             title = name,
             custom = category.key is LiveKey.Custom,
-            onMove = { kind -> lock.guarded(category.key, category.sealed, SealedCategoryAction.MOVE) { vm.moveCategory(category.key, kind) } },
-            onHide = { lock.guarded(category.key, category.sealed, SealedCategoryAction.HIDE) { vm.hideCategory(category.key) } },
-            onRestore = {
-                categoryMenuFor = null
-                lock.guarded(category.key, category.sealed, SealedCategoryAction.RESTORE) { restoreFor = category }
-            },
+            onMove = { kind -> vm.moveCategory(category.key, kind) },
+            onHide = { vm.hideCategory(category.key) },
+            onRestore = { categoryMenuFor = null; restoreFor = category },
             onDismiss = { categoryMenuFor = null },
-            locked = tv.own.owntv.mobile.ui.categorylock.lockMenuState(category.key, category.locked),
-            onToggleLock = { lock.toggleLock(category.key) },
         )
     }
     restoreFor?.let { category ->

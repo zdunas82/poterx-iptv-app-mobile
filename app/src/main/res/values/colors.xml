@@ -5,6 +5,4 @@
     <color name="owntv_window_bg">#040e0b</color>
     <!-- Adaptive launcher icon background. -->
     <color name="owntv_icon_bg">#050914</color>
-    <!-- Poterx: launcher icon background (overrides core's eggshell colour) -->
-    <color name="owntv_icon_bg_eggshell">#0B1F3A</color>
 </resources>

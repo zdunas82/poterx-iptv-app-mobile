@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import tv.own.owntv.core.customize.MoveKind
 import tv.own.owntv.core.customize.SpanSelector
 import tv.own.owntv.core.settings.SettingsRepository
+import tv.own.owntv.core.util.Pin
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 
@@ -222,7 +223,7 @@ internal fun PinEditFlow(mode: PinEdit, onSetPin: (String?) -> Unit, onDone: () 
     when (mode) {
         PinEdit.REMOVE -> ConfirmDialog(
             title = stringResource(R.string.settings_customize_remove_pin_title),
-            message = stringResource(R.string.settings_customize_remove_pin_message) + " " + stringResource(R.string.settings_customize_remove_pin_locks),
+            message = stringResource(R.string.settings_customize_remove_pin_message),
             confirmLabel = stringResource(R.string.settings_customize_remove),
             onConfirm = { onSetPin(null); onDone() },
             onDismiss = onDone,
@@ -252,11 +253,16 @@ internal fun PinEditFlow(mode: PinEdit, onSetPin: (String?) -> Unit, onDone: () 
 /** The screen shown instead of Customize until the right PIN is typed. */
 @Composable
 internal fun CustomizePinGate(storedPin: String, onUnlock: () -> Unit) {
-    tv.own.owntv.mobile.ui.categorylock.PinDoorSheet(
-        pin = storedPin,
-        onUnlock = onUnlock,
-        onDismiss = { },
+    var wrong by remember { mutableStateOf(false) }
+    PinPromptDialog(
+        title = stringResource(
+            if (wrong) R.string.settings_customize_wrong_pin else R.string.settings_customize_enter_pin,
+        ),
         description = stringResource(R.string.settings_customize_pin_locked),
+        onSubmit = { entered ->
+            if (entered == storedPin || Pin.verify(entered, storedPin)) onUnlock() else wrong = true
+        },
+        onDismiss = { },
     )
 }
 

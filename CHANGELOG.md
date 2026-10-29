@@ -7,19 +7,6 @@
 > Issue numbers that are part of a title are fine; explanatory parentheticals are not. The detail —
 > what, why, files and verification — belongs in the commit message, never here.
 
-## Unreleased
-
-### New features
-- **✨ Clean channel names: a Names option on each playlist**
-- **📋 EPG sources: Move up / Move down set the guide priority**
-- **🚀 Start on the last channel in the TV Guide or Live TV**
-- **🔒 Lock a category with the Customize PIN**
-- **🔐 Ask for the PIN to open Settings**
-
-### Fixes
-- **Clean channel names can be found in Settings search**
-- **Live TV no longer keeps showing a category from the playlist you just switched away from**
-
 ## v1.1.1 — 2026-10-21
 
 ### New features

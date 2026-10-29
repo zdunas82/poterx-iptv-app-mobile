@@ -79,22 +79,6 @@ fun MobileNavHost(
     val previewOn by koinInject<SettingsRepository>().livePreviewEnabled.collectAsStateWithLifecycle(true)
     // A goal alert, reminder or live score card was tapped: open that match (MainActivity reads the extra).
     val sportsPlayback: SportsPlayback = koinInject()
-    // The Settings PIN asks once per visit: a route outside the guarded pages ends the visit.
-    // A relock stopped what the player showed: its page closes rather than staying up empty.
-    val sealedHost: tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost = koinInject()
-    androidx.compose.runtime.LaunchedEffect(navController, sealedHost) {
-        sealedHost.stopped.collect {
-            if (navController.currentDestination?.route == PLAYER_ROUTE) navController.popBackStack()
-        }
-    }
-    val pinSession: tv.own.owntv.mobile.ui.categorylock.SettingsPinSession = koinInject()
-    androidx.compose.runtime.LaunchedEffect(navController, pinSession) {
-        navController.currentBackStackEntryFlow.collect { entry ->
-            if (!isPinGuardedRoute(entry.destination.route)) pinSession.end()
-        }
-    }
-    // Cancel on the PIN: back where the user came from, or Home when Settings was opened as a tab.
-    val leaveGuarded: () -> Unit = { if (!navController.popBackStack()) navController.navigateToTab(MobileDestination.HOME) }
     androidx.compose.runtime.LaunchedEffect(sportsPlayback) {
         sportsPlayback.openMatchKey.collect { key ->
             if (key == null) return@collect
@@ -175,9 +159,7 @@ fun MobileNavHost(
                             },
                             onPlay = { navController.navigate(PLAYER_ROUTE) },
                         )
-                    MobileDestination.SETTINGS -> tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
-                        SettingsScreen(onOpenRoute = { navController.navigate(it) })
-                    }
+                    MobileDestination.SETTINGS -> SettingsScreen(onOpenRoute = { navController.navigate(it) })
                 }
                 }
             }
@@ -249,17 +231,13 @@ fun MobileNavHost(
         val openRoute: (String) -> Unit = { navController.navigate(it) { launchSingleTop = true } }
         SettingsGroup.entries.forEach { group ->
             page(group.route) {
-                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
-                    CompositionLocalProvider(LocalSettingsNav provides openRoute) { SettingsGroupScreen(group) }
-                }
+                CompositionLocalProvider(LocalSettingsNav provides openRoute) { SettingsGroupScreen(group) }
             }
         }
         SettingsLeaf.entries.forEach { leaf ->
             page(leaf.route) {
-                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
-                    CompositionLocalProvider(LocalSettingsNav provides openRoute) {
-                        SettingsLeafPage(leaf, onSetup = { navController.navigate(setupRoute(it)) })
-                    }
+                CompositionLocalProvider(LocalSettingsNav provides openRoute) {
+                    SettingsLeafPage(leaf, onSetup = { navController.navigate(setupRoute(it)) })
                 }
             }
         }
@@ -267,21 +245,18 @@ fun MobileNavHost(
         // left, so nothing under `settings/` can reach them and the settings search cannot see them.
         MoreLeaf.entries.forEach { leaf ->
             page(leaf.route) {
-                // Backup & Restore and Local sync can restore or copy settings: the Settings PIN guards them too.
-                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded, enabled = leaf in PIN_GUARDED_MORE) {
-                    CompositionLocalProvider(LocalNavAnimatedScope provides this) {
-                        MoreLeafPage(
-                            leaf = leaf,
-                            // A channel or a title opened from Favourites lands on the screen it has
-                            // under its own tab — the same convention the Guide uses for its channels.
-                            onOpenChannel = { channelId, _ -> playChannel(channelId) },
-                            onOpenItem = { tab, id ->
-                                navController.navigate(detailRoute(tab.parent.route, tab, id))
-                            },
-                            onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
-                            onOpenLanguage = { navController.navigate(tv.own.owntv.mobile.ui.screens.settings.SettingsLeaf.LANGUAGE.route) },
-                        )
-                    }
+                CompositionLocalProvider(LocalNavAnimatedScope provides this) {
+                    MoreLeafPage(
+                        leaf = leaf,
+                        // A channel or a title opened from Favourites lands on the screen it has
+                        // under its own tab — the same convention the Guide uses for its channels.
+                        onOpenChannel = { channelId, _ -> playChannel(channelId) },
+                        onOpenItem = { tab, id ->
+                            navController.navigate(detailRoute(tab.parent.route, tab, id))
+                        },
+                        onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
+                        onOpenLanguage = { navController.navigate(tv.own.owntv.mobile.ui.screens.settings.SettingsLeaf.LANGUAGE.route) },
+                    )
                 }
             }
         }
@@ -323,16 +298,6 @@ private fun NavGraphBuilder.page(
 }
 
 /** The tabs a film or a show can be opened from, and therefore returned to. */
-/** The More pages that can restore or copy settings, guarded by the Settings PIN like Settings itself. */
-private val PIN_GUARDED_MORE = setOf(MoreLeaf.BACKUP, MoreLeaf.LOCAL_SYNC)
-
-/** Settings, every page under it, and [PIN_GUARDED_MORE]: one visit of the Settings PIN. */
-private fun isPinGuardedRoute(route: String?): Boolean =
-    route != null && (
-        route == MobileDestination.SETTINGS.route || route.startsWith("${MobileDestination.SETTINGS.route}/") ||
-            PIN_GUARDED_MORE.any { it.route == route }
-        )
-
 private val LIBRARY_PARENTS = listOf(
     MobileDestination.MOVIES,
     MobileDestination.SERIES,

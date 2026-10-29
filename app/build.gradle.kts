@@ -1,13 +1,5 @@
 import java.io.ByteArrayOutputStream
-import java.net.URLDecoder
-import java.security.KeyStore
-import java.security.MessageDigest
-import java.security.SecureRandom
-import java.util.Base64
 import java.util.Properties
-import javax.crypto.Cipher
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.SecretKeySpec
 import javax.inject.Inject
 import org.gradle.process.ExecOperations
 
@@ -26,21 +18,6 @@ val packagedLocaleQualifiers: Set<String> = run {
     raw.mapNotNull { entry ->
         if ((entry["packaged"] as? Boolean) == true) entry["resourceQualifier"] as? String else null
     }.toSet()
-}
-
-// Poterx: a locked build (server or playlist line supplied, see defaultConfig below) packages Polish
-// and English only. Mirrors PoterxLocales.qualifiers in the app, which narrows the language picker.
-val poterxLocaleQualifiers: Set<String> = setOf("en", "pl")
-val poterxLockedBuild: Boolean = run {
-    val props = Properties().apply {
-        val f = rootProject.file("poterx.properties")
-        if (f.isFile) f.inputStream().use { load(it) }
-    }
-    fun present(env: String, property: String): Boolean =
-        !System.getenv(env).isNullOrBlank() ||
-            !providers.gradleProperty(property).orNull.isNullOrBlank() ||
-            !props.getProperty(property).isNullOrBlank()
-    present("POTERX_PLAYLIST_URL", "poterx.playlistUrl") || present("POTERX_SERVER", "poterx.server")
 }
 
 plugins {
@@ -69,50 +46,14 @@ android {
         if (f.isFile) f.inputStream().use { load(it) }
     }
 
-    // The SAME keystore and the same property names as the TV app. A signing certificate must be
-    // stable per applicationId, not unique per app, and these two apps are maintained by one person
-    // — a second keystore would only add a second thing to lose. Env vars first (that is how CI
-    // injects the GitHub secrets), then user-wide Gradle properties, then the out-of-repo file.
-    // Nothing configured (a fork, a fresh clone) still builds; the APK is just unsigned.
-    // Declared here, above defaultConfig, because the sealed account below binds to the certificate.
-    fun signingValue(env: String, property: String): String? =
-        System.getenv(env)
-            ?: providers.gradleProperty(property).orNull
-            ?: localSigningProps.getProperty(property)
-
-    val releaseKeystore = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
-
-    /**
-     * Poterx: SHA-256 of the certificate this build will be signed with — the release keystore when
-     * one is configured, else the debug keystore every local build signs with. The sealed account's
-     * key is derived from it (see `PoterxLink.seal`), so the blob opens only inside an APK carrying
-     * this signature: a repackaged copy, or the strings pulled out of the APK, do not decrypt it.
-     */
-    fun signingCertSha256(): ByteArray? = runCatching {
-        val (path, storePass, alias) = if (releaseKeystore != null) {
-            Triple(releaseKeystore, signingValue("KEYSTORE_PASSWORD", "owntv.keystorePassword").orEmpty(), signingValue("KEY_ALIAS", "owntv.keyAlias").orEmpty())
-        } else {
-            Triple(File(System.getProperty("user.home"), ".android/debug.keystore").path, "android", "androiddebugkey")
-        }
-        val f = File(path)
-        if (!f.isFile) return@runCatching null
-        val store = listOf("PKCS12", "JKS").firstNotNullOfOrNull { type ->
-            runCatching { KeyStore.getInstance(type).also { ks -> f.inputStream().use { ks.load(it, storePass.toCharArray()) } } }.getOrNull()
-        } ?: return@runCatching null
-        val cert = store.getCertificate(alias) ?: store.aliases().toList().firstNotNullOfOrNull { store.getCertificate(it) } ?: return@runCatching null
-        MessageDigest.getInstance("SHA-256").digest(cert.encoded)
-    }.getOrNull()
-
     defaultConfig {
-        // Poterx: its own install identity, so it sits next to a stock OwnTV Mobile (and next to
-        // Poterx TV on a box) instead of replacing either. Never changes after the first release.
-        applicationId = "tv.poterx.mobile"
+        applicationId = "tv.own.owntv.mobile"
         minSdk = 26
         targetSdk = 36
         // CI injects these from the git tag, exactly as in the TV app. The fallbacks are only used
-        // by local/debug builds and are pinned HIGH (above 99.99.99.99 in the release scale) so a dev
-        // APK is always "newer" than a published release and installs straight over it.
-        versionCode = (System.getenv("VERSION_CODE") ?: "100000000").toInt()
+        // by local/debug builds and are pinned HIGH so a dev APK is always "newer" than a published
+        // release and installs straight over it.
+        versionCode = (System.getenv("VERSION_CODE") ?: "99999").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "99.99.99"
 
         // The three switches core reads through CoreBuildInfo. Same resolution order as the TV app:
@@ -141,61 +82,6 @@ android {
         buildConfigField("String", "TMDB_EDGE_KEY", "\"${edgeKey.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        // ---- Poterx locked source -------------------------------------------------------------
-        // The one Xtream account this build is locked to. NEVER in the repo. Sources, first wins:
-        //   1. env POTERX_PLAYLIST_URL / POTERX_SERVER + POTERX_USERNAME + POTERX_PASSWORD (CI secrets)
-        //   2. Gradle properties poterx.playlistUrl / poterx.server / poterx.username / poterx.password
-        //   3. poterx.properties in the project root (gitignored) with the same keys
-        // A playlist link is accepted in every form a panel hands out (get.php?username=…,
-        // /playlist/USER/PASS/m3u_plus, /live/USER/PASS/…). Two locked shapes:
-        //   server + username + password  → everything built in, the user never types anything
-        //   server only                   → the server is built in, the user types username + password
-        // With no server at all the build is a plain OwnTV Mobile: POTERX_LOCKED is false.
-        // The blob's lines are the TV app's, minus the VPN account (lines 8 and 9), which the phone
-        // does not carry: server, username, password, prefer-HLS, service PIN, contact, TMDB key,
-        // update server.
-        val poterxProps = Properties().apply {
-            val f = rootProject.file("poterx.properties")
-            if (f.isFile) f.inputStream().use { load(it) }
-        }
-        fun poterxValue(env: String, property: String): String? =
-            System.getenv(env)?.takeIf { it.isNotBlank() }
-                ?: providers.gradleProperty(property).orNull?.takeIf { it.isNotBlank() }
-                ?: poterxProps.getProperty(property)?.takeIf { it.isNotBlank() }
-        val poterxAccount: List<String>? = run {
-            val link = poterxValue("POTERX_PLAYLIST_URL", "poterx.playlistUrl")?.trim()?.trimEnd('.', ',')
-            val fromLink = link?.let { PoterxLink.parse(it) }
-            val server = fromLink?.get(0) ?: poterxValue("POTERX_SERVER", "poterx.server")
-            val user = fromLink?.get(1) ?: poterxValue("POTERX_USERNAME", "poterx.username")
-            val pass = fromLink?.get(2) ?: poterxValue("POTERX_PASSWORD", "poterx.password")
-            val hls = fromLink?.get(3) ?: (poterxValue("POTERX_PREFER_HLS", "poterx.preferHls") == "true").let { if (it) "1" else "0" }
-            // An optional service PIN (asked before signing out and for the test update channel) and
-            // the provider's contact line (shown on sign-in failures and on the Account page).
-            val pin = poterxValue("POTERX_SERVICE_PIN", "poterx.servicePin")?.trim().orEmpty()
-            val contact = poterxValue("POTERX_CONTACT", "poterx.contact")?.trim().orEmpty()
-            // The provider's own TMDB API key (v3): posters and descriptions straight from TMDB.
-            val tmdb = poterxValue("POTERX_TMDB_KEY", "poterx.tmdbKey")?.trim().orEmpty()
-            // The provider's own update server (https://…); blank keeps GitHub Releases.
-            val updateUrl = poterxValue("POTERX_UPDATE_URL", "poterx.updateUrl")?.trim()?.trimEnd('/').orEmpty()
-            // Server alone is a valid lock: the user then types only a username and password.
-            if (server.isNullOrBlank()) null
-            else listOf(PoterxLink.normalizeServer(server), user?.trim().orEmpty(), pass.orEmpty(), hls, pin, contact, tmdb, updateUrl)
-        }
-        // The key is derived from a random seed, the signing certificate and the application id; the
-        // APK carries the seed and the blob, never the key. Without a keystore in reach (fork CI, a
-        // bare clone) the binding is empty and the derivation falls back to seed + application id.
-        val poterxBinding = if (poterxAccount != null) signingCertSha256() else null
-        val poterxSealed = poterxAccount?.let { PoterxLink.seal(it.joinToString("\n"), poterxBinding ?: ByteArray(0), "tv.poterx.mobile") }
-        buildConfigField("boolean", "POTERX_LOCKED", (poterxSealed != null).toString())
-        buildConfigField("boolean", "POTERX_BOUND", (poterxBinding != null).toString())
-        buildConfigField("String", "POTERX_SEED", "\"${poterxSealed?.first ?: ""}\"")
-        buildConfigField("String", "POTERX_BLOB", "\"${poterxSealed?.second ?: ""}\"")
-        // Never the server address: the build log is public to anyone who can read the Actions run.
-        if (poterxAccount != null) logger.lifecycle(if (poterxBinding != null) "Poterx: account sealed to the signing certificate" else "Poterx: account sealed WITHOUT a signing certificate (no keystore in reach)")
-        if (poterxAccount != null && poterxAccount[1].isNotBlank()) logger.lifecycle("Poterx: building a LOCKED app, account built in")
-        else if (poterxAccount != null) logger.lifecycle("Poterx: building a LOCKED app, server built in, the user signs in")
-        else logger.lifecycle("Poterx: no account configured, building an unlocked (stock OwnTV Mobile) app")
     }
 
     // ABI split via product flavors, mirroring the TV app: `standard` is what real phones and tablets
@@ -213,7 +99,17 @@ android {
         }
     }
 
-    // Release signing (the keystore and values are resolved above defaultConfig).
+    // The SAME keystore and the same property names as the TV app. A signing certificate must be
+    // stable per applicationId, not unique per app, and these two apps are maintained by one person
+    // — a second keystore would only add a second thing to lose. Env vars first (that is how CI
+    // injects the GitHub secrets), then user-wide Gradle properties, then the out-of-repo file.
+    // Nothing configured (a fork, a fresh clone) still builds; the APK is just unsigned.
+    fun signingValue(env: String, property: String): String? =
+        System.getenv(env)
+            ?: providers.gradleProperty(property).orNull
+            ?: localSigningProps.getProperty(property)
+
+    val releaseKeystore = signingValue("KEYSTORE_FILE", "owntv.keystoreFile")
     signingConfigs {
         if (releaseKeystore != null) {
             create("release") {
@@ -263,8 +159,7 @@ android {
         // locale folder ships too (appcompat alone contributes ~85), and nothing can strip a locale
         // afterwards: shrinkResources removes unreferenced resources, never locales. The debug-only
         // pseudolocale qualifiers are added back per variant below; release ships neither.
-        // Poterx: Polish and English only on a locked build (smaller APK, quicker updates).
-        localeFilters.addAll(if (poterxLockedBuild) poterxLocaleQualifiers else packagedLocaleQualifiers)
+        localeFilters.addAll(packagedLocaleQualifiers)
     }
 
     packaging {
@@ -490,59 +385,4 @@ dependencies {
     // Records the profile this module then packages. Recording needs a real device, so this is
     // never exercised by CI; see baselineprofile/BaselineProfileGenerator.kt.
     baselineProfile(project(":baselineprofile"))
-}
-
-
-// ---- Poterx helpers ---------------------------------------------------------------------------
-// Kept in the build script so the account never needs a committed file: the link is parsed here and
-// sealed with a fresh AES-GCM key per build. Both halves land in BuildConfig; the app's
-// tv.own.owntv.mobile.poterx.LockedSource reverses this at runtime. Identical to the TV app's.
-object PoterxLink {
-    /** server, username, password, "1"|"0" (prefer HLS) — or null when [raw] is not a panel link. */
-    fun parse(raw: String): List<String>? {
-        val m = Regex("""^(https?://[^/?#]+)(/[^?#]*)?(\?[^#]*)?""").find(raw.trim()) ?: return null
-        val base = m.groupValues[1]
-        val path = m.groupValues[2]
-        val query = m.groupValues[3].removePrefix("?").replace("&amp;", "&")
-        val params = query.split('&').filter { it.contains('=') }
-            .associate { it.substringBefore('=') to URLDecoder.decode(it.substringAfter('='), "UTF-8") }
-        params["username"]?.let { u ->
-            val p = params["password"] ?: return null
-            val out = params["output"]?.lowercase()
-            return listOf(base, u, p, if (out == "m3u8" || out == "hls") "1" else "0")
-        }
-        val segments = path.trim('/').split('/').filter { it.isNotEmpty() }
-        if (segments.isEmpty()) return null
-        val idx = if (segments[0] in setOf("playlist", "live", "movie", "series", "timeshift")) 1 else 0
-        if (segments.size < idx + 2) return null
-        val hls = segments.last().endsWith(".m3u8", ignoreCase = true) || segments.last().equals("m3u8", ignoreCase = true)
-        return listOf(base, segments[idx], segments[idx + 1], if (hls) "1" else "0")
-    }
-
-    fun normalizeServer(server: String): String {
-        val t = server.trim().trimEnd('/')
-        return if (t.startsWith("http://") || t.startsWith("https://")) t else "http://$t"
-    }
-
-    /**
-     * Base64 seed to Base64 (iv + ciphertext), AES-256-GCM. The key is SHA-256(seed ‖ binding ‖
-     * applicationId): the seed is random per build and travels in the APK, the binding is the signing
-     * certificate's SHA-256 (the app recomputes it from its own signature at run time), so the key
-     * itself is never written anywhere.
-     */
-    fun seal(plain: String, binding: ByteArray, applicationId: String): Pair<String, String> {
-        val rnd = SecureRandom()
-        val seed = ByteArray(32).also { rnd.nextBytes(it) }
-        val key = MessageDigest.getInstance("SHA-256").digest(seed + binding + applicationId.toByteArray(Charsets.UTF_8))
-        val iv = ByteArray(12).also { rnd.nextBytes(it) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(
-            Cipher.ENCRYPT_MODE,
-            SecretKeySpec(key, "AES"),
-            GCMParameterSpec(128, iv),
-        )
-        val body = cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
-        val enc = Base64.getEncoder()
-        return enc.encodeToString(seed) to enc.encodeToString(iv + body)
-    }
 }

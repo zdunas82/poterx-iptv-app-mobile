@@ -191,17 +191,6 @@ fun PlayerScreen(
     var multiview by remember {
         mutableStateOf<tv.own.owntv.mobile.ui.screens.multiview.MobileMultiviewState?>(null)
     }
-    // The relock reads the grid's tiles and empties those on a channel of a category it has just closed.
-    val sealedHost = koinInject<tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost>()
-    androidx.compose.runtime.DisposableEffect(multiview, sealedHost) {
-        val grid = multiview
-        sealedHost.tiles = grid?.let { g -> { g.tiles.map { it.channel?.categoryId } } }
-        sealedHost.clear = grid?.let { g -> g::clear }
-        onDispose {
-            sealedHost.tiles = null
-            sealedHost.clear = null
-        }
-    }
     var multiviewPickFor by remember { mutableStateOf<Int?>(null) }
     // Which category the Multiview picker is inside, and what it holds. Null = showing categories.
     var multiviewCategory by remember { mutableStateOf<LiveKey?>(null) }
@@ -800,9 +789,8 @@ fun PlayerScreen(
             onReport = {
                 val meta = activeEngine.currentMeta.value
                 scope.launch {
-                    // Poterx: the report may leave the phone; the panel's address stays out of it.
                     val snapshot = activeEngine.streamInfo().joinToString("\n") { row ->
-                        "  ${res.getString(row.label.titleRes)}: ${tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(row.value.displayText(res))}"
+                        "  ${res.getString(row.label.titleRes)}: ${row.value.displayText(res)}"
                     }
                     PlaybackErrorLog.report(
                         context = context,

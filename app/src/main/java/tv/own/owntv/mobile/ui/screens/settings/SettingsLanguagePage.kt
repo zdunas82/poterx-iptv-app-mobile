@@ -68,8 +68,7 @@ fun SettingsLanguagePage(
     var query by remember { mutableStateOf("") }
     var helpSheet by remember { mutableStateOf(false) }
 
-    // Poterx: a locked build packages Polish and English only; the picker lists what it carries.
-    val rows = remember { tv.own.owntv.mobile.poterx.PoterxLocales.pickerRows.sortedBy { it.englishName.lowercase(Locale.ROOT) } }
+    val rows = remember { SupportedLocales.pickerRows.sortedBy { it.englishName.lowercase(Locale.ROOT) } }
     val needle = query.trim()
     val matches = remember(needle) { rows.filter { it.matches(needle) } }
     val systemLabel = stringResource(R.string.settings_language_system_default)
@@ -92,8 +91,7 @@ fun SettingsLanguagePage(
             )
         }
 
-        // Poterx: a locked build takes no translations, so the block is not there.
-        if (!tv.own.owntv.mobile.poterx.LockedSource.enabled) settingsGroup(key = "help") {
+        settingsGroup(key = "help") {
             StageSettingRow(
                 title = stringResource(R.string.settings_language_help_translate),
                 subtitle = stringResource(R.string.settings_language_contribution_description),

@@ -210,8 +210,7 @@ order, so both apps offer the same actions in the same arrangement.
 
 ## 4. EPG, catch-up & recording
 
-The guide, catch-up, live rewind, auto-matching, guide offsets and multiple XMLTV feeds (their order
-in EPG sources is the guide priority) are core's
+The guide, catch-up, live rewind, auto-matching, guide offsets and multiple XMLTV feeds are core's
 and behave as they do on the television — including **Pause and rewind live TV** (a channel without
 catch-up saved on the phone while watched, kept through picture-in-picture and sound-only playback).
 Mobile-specific shapes:

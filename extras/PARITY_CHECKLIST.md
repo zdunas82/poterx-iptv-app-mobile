@@ -29,7 +29,6 @@ Two rows took a second look before they settled. Both are explained below, under
 | Search | ✅ | Grouped results with a count per kind. Scrolling to the end loads the next page — the television still stops at the first 40 of each kind |
 | Downloads | ✅ | With SAF for the folder — no all-files permission |
 | Customize categories & items | ✅ | Including bulk rename, spans and the PIN lock |
-| Category locks and the Settings PIN | ✅ | Core's lock logic (`core.categorylock`), the TV's rules: lock from a category's hold menu, Enter PIN, relock on leaving the app or switching profile, the floating window included; Settings, Backup & Restore and Local sync behind the PIN when asked |
 | Profiles, PIN, restrictions | ✅ | Plus a profile picture of your own, chosen while creating or editing — the phone from its photos, the television from a file or a photo sent from a phone |
 | Backup / restore | ✅ | Including the television→phone migration path, encrypted backups included |
 | Theme, accent, Glass & background | ✅ | The same stored values; a colour picker was added for all three colour settings |

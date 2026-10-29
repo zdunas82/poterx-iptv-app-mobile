@@ -64,8 +64,6 @@ fun ProfileGate(
     onEntered: (ProfileEntity) -> Unit,
     modifier: Modifier = Modifier,
     vm: ProfilesViewModel,
-    /** Poterx: a locked build adds a profile through its sign-in flow; null keeps the editor sheet. */
-    onAddLocked: (() -> Unit)? = null,
 ) {
     var pinFor by remember { mutableStateOf<ProfileEntity?>(null) }
     var addProfile by remember { mutableStateOf(false) }
@@ -113,7 +111,7 @@ fun ProfileGate(
                 pair.forEach { profile ->
                     Box(Modifier.weight(1f), contentAlignment = Alignment.TopCenter) {
                         if (profile == null) {
-                            AddProfileTile(onClick = { if (onAddLocked != null) onAddLocked() else addProfile = true })
+                            AddProfileTile(onClick = { addProfile = true })
                         } else {
                             ProfileTile(
                                 profile = profile,

@@ -217,21 +217,6 @@ class SettingsViewModel(
         catalogSync.enqueueSync(source.id, reason = "manual", forcePrune = removeMissing)
     }
 
-    /**
-     * Stores a playlist's "Clean channel names" option and its own words ([customText], `;`-separated;
-     * blank = none). Names are cleaned at sync time, so the playlist re-syncs whenever the shown names
-     * would change: the option was switched, or its words changed while it is on.
-     */
-    fun saveChannelNameCleanup(source: SourceEntity, enabled: Boolean, customText: String) {
-        val strip = customText.trim().ifEmpty { null }
-        if (enabled == source.cleanChannelNames && strip == source.channelNameStrip) return
-        val namesChange = enabled || source.cleanChannelNames
-        viewModelScope.launch {
-            sourceDao.updateChannelNameCleanup(source.id, enabled, strip)
-            if (namesChange) resync(source)
-        }
-    }
-
     fun cancelResync(source: SourceEntity) {
         catalogSync.cancelSync(source.id)
     }

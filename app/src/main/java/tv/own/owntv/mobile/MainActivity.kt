@@ -59,9 +59,6 @@ open class MainActivity : FragmentActivity() {
     private val localeStore: LocaleStore by inject()
     private val settings: SettingsRepository by inject()
     private val autoRefresh: tv.own.owntv.core.sync.AutoRefresh by inject()
-    private val vodTuner: tv.own.owntv.mobile.ui.screens.library.VodTuner by inject()
-    private val relock: tv.own.owntv.core.categorylock.CategoryRelock by inject()
-    private val sealedHost: tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost by inject()
 
     /**
      * The engine actually holding the stream — mpv for a film, a download or a recording, ExoPlayer
@@ -146,10 +143,6 @@ open class MainActivity : FragmentActivity() {
         lifecycleScope.launch { settings.backgroundPlayback.collect { backgroundPlayback = it } }
         lifecycleScope.launch { settings.audioOnScreenOff.collect { audioOnScreenOff = it } }
         keepScreenOnWhileThereIsAPicture()
-        // Category locks: leaving the app or changing profile closes what the PIN opened, and stops
-        // what plays from a category that is now sealed. The tuners outlive this activity, so does this.
-        relock.guard = tv.own.owntv.mobile.ui.categorylock.sealedPlaybackGuard(tuner, vodTuner, sealedHost)
-        lifecycleScope.launch { settings.activeProfileId.collect(relock::profileChanged) }
         // "Refresh on startup" and the interval modes of the Auto refresh settings, once a profile is
         // active (straight away, or as soon as first-run setup has made one).
         lifecycleScope.launch {
@@ -201,9 +194,6 @@ open class MainActivity : FragmentActivity() {
         pip.inPip.value = isInPictureInPictureMode
         if (isInPictureInPictureMode) {
             wasInPipWindow = true
-            // The floating window goes over other apps: the app has left, so the categories the PIN
-            // opened close, and a channel or film from one stops.
-            relock.leftApp()
             ContextCompat.registerReceiver(
                 this,
                 pipActions,
@@ -283,8 +273,6 @@ open class MainActivity : FragmentActivity() {
     override fun onStop() {
         super.onStop()
         if (isChangingConfigurations) return
-        // The relock first: it reads what is playing before anything below pauses or drops it.
-        relock.leftApp()
         // Stopped after the floating window was up, without ever resuming in between: the window was
         // closed. That is its own answer, and not the background-playback question below.
         if (wasInPipWindow) {
@@ -336,16 +324,13 @@ open class MainActivity : FragmentActivity() {
         super.onStart()
         // Back in the foreground: interval refreshes only; core throttles a quick in-and-out.
         lifecycleScope.launch { autoRefresh.check(includeStartup = false) }
-        // Not before the relock check is done: what it found sealed must not come back first.
-        relock.afterSealCheck {
-            if (droppedVideoForBackground) {
-                droppedVideoForBackground = false
-                engine.exitAudioOnly()
-            }
-            if (pausedForBackground) {
-                pausedForBackground = false
-                if (tuner.hasStream && !engine.isPlaying.value) engine.togglePlayPause()
-            }
+        if (droppedVideoForBackground) {
+            droppedVideoForBackground = false
+            engine.exitAudioOnly()
+        }
+        if (pausedForBackground) {
+            pausedForBackground = false
+            if (tuner.hasStream && !engine.isPlaying.value) engine.togglePlayPause()
         }
     }
 

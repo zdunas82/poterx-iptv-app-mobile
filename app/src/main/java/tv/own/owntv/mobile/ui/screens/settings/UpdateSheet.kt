@@ -51,19 +51,16 @@ import tv.own.owntv.mobile.ui.stage.StageButtonStyle
  * opens at all if it found something.
  */
 @Composable
-fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false, required: Boolean = false) {
-    // Poterx: the provider's own server when one is built in, else core's GitHub Releases. [required]
-    // is the server's "this version is no longer served" — no Later, no Close, and a swipe reopens it.
-    val manager: tv.own.owntv.mobile.poterx.AppUpdater = koinInject()
+fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false) {
+    val manager: UpdateManager = koinInject()
     val state by manager.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        // A required update re-asks the server too, so the sheet never sits on a stale Idle state.
-        if (checkOnOpen || required) manager.check()
+        if (checkOnOpen) manager.check()
     }
 
-    MobileBottomSheet(onDismissRequest = { if (!required) onDismiss() }) {
-        tv.own.owntv.mobile.ui.stage.StageSheetHeader(stringResource(if (required) R.string.poterx_update_required_title else R.string.update_title))
+    MobileBottomSheet(onDismissRequest = onDismiss) {
+        tv.own.owntv.mobile.ui.stage.StageSheetHeader(stringResource(R.string.update_title))
         Column(Modifier.padding(horizontal = MobileDimens.ScreenPaddingH)) {
             when (val s = state) {
                 UpdateManager.State.Idle, UpdateManager.State.Checking -> {
@@ -104,9 +101,7 @@ fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false, required: B
                         style = tv.own.owntv.mobile.ui.stage.stageText(13.5f, 500),
                         color = tv.own.owntv.mobile.ui.stage.LocalStagePalette.current.text,
                     )
-                    // Poterx: a locked build shows the notes without links or the repository's name.
-                    val notes = tv.own.owntv.mobile.poterx.PoterxReleaseNotes.clean(s.info.notes)
-                    if (notes.isNotBlank()) {
+                    if (s.info.notes.isNotBlank()) {
                         Spacer(Modifier.height(MobileDimens.GapSmall))
                         Text(
                             text = stringResource(R.string.update_whats_new),
@@ -115,7 +110,7 @@ fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false, required: B
                         )
                         Spacer(Modifier.height(MobileDimens.GapSmall))
                         Text(
-                            text = renderReleaseNotes(notes),
+                            text = renderReleaseNotes(s.info.notes),
                             style = tv.own.owntv.mobile.ui.stage.stageText(12f, 500),
                             color = tv.own.owntv.mobile.ui.stage.LocalStagePalette.current.dim,
                             // Capped and scrolled so Update / Later stay on screen, as on the
@@ -134,7 +129,7 @@ fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false, required: B
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(MobileDimens.GapSmall),
                     ) {
-                        if (!required) StageButton(
+                        StageButton(
                             text = stringResource(R.string.update_later),
                             onClick = onDismiss,
                         )
@@ -176,7 +171,7 @@ fun UpdateSheet(onDismiss: () -> Unit, checkOnOpen: Boolean = false, required: B
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(MobileDimens.GapSmall),
                     ) {
-                        if (!required) StageButton(
+                        StageButton(
                             text = stringResource(R.string.settings_close),
                             onClick = onDismiss,
                         )

@@ -66,18 +66,14 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import tv.own.owntv.mobile.ui.screens.guide.LiveGuideGrid
 import tv.own.owntv.mobile.ui.screens.guide.LiveGuideTools
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.epg.displayLogoUrl
-import tv.own.owntv.core.categorylock.SealedCategoryAction
 import tv.own.owntv.core.live.LiveKey
 import tv.own.owntv.mobile.R
-import tv.own.owntv.mobile.ui.components.indexOfLoaded
 import tv.own.owntv.mobile.ui.screens.home.groupedCountText
 import tv.own.owntv.mobile.ui.components.ChannelLogoImage
 import tv.own.owntv.mobile.ui.components.TwoPane
@@ -111,6 +107,8 @@ fun LiveScreen(
     val multiviewSelection by tuner.multiviewSelection.collectAsStateWithLifecycle()
     val multiviewPending = multiviewSelection.isNotEmpty()
 
+    LaunchedEffect(Unit) { vm.applyStartupSelection() }
+
     val categories by vm.categories.collectAsStateWithLifecycle()
     val selected by vm.selected.collectAsStateWithLifecycle()
     val channels = vm.channels.collectAsLazyPagingItems()
@@ -128,7 +126,6 @@ fun LiveScreen(
     listState.ObeyScrollToTop(route = "live", scrollToTop = scrollToTop)
 
     var menuFor by remember { mutableStateOf<ChannelEntity?>(null) }
-    val lock = tv.own.owntv.mobile.ui.categorylock.rememberCategoryLock(tv.own.owntv.core.model.MediaType.LIVE)
     var categoryPicker by remember { mutableStateOf(false) }
     var categoryMenuFor by remember { mutableStateOf<LiveCategory?>(null) }
     var restoreFor by remember { mutableStateOf<LiveCategory?>(null) }
@@ -147,8 +144,7 @@ fun LiveScreen(
     // A tap plays the channel in a preview (on top of Live TV on a phone, beside it when wide), instead
     // of opening a channel page.
     // Settings › Live TV › Live preview: off, a tap opens the channel full screen with no preview first.
-    val settings = koinInject<SettingsRepository>()
-    val previewOn by settings.livePreviewEnabled.collectAsStateWithLifecycle(true)
+    val previewOn by koinInject<tv.own.owntv.core.settings.SettingsRepository>().livePreviewEnabled.collectAsStateWithLifecycle(true)
     val showPreview = playing != null
     val paneHasChannel = showPreview
     DisposableEffect(paneHasChannel) {
@@ -177,12 +173,8 @@ fun LiveScreen(
     val liveView by vm.liveView.collectAsStateWithLifecycle()
     // "Live TV opens in: Guide" draws the guide grid in place of the list.
     val guideView = liveView == SettingsRepository.LiveView.GUIDE
-    // A category the PIN has not opened names no count: how many channels it holds is the lock's business.
-    val countText = when {
-        guideView -> stringResource(R.string.content_live_guide_view)
-        categories.firstOrNull { it.key == selected }?.sealed == true -> null
-        else -> groupedCountText(R.plurals.content_live_channel_count, count)
-    }
+    val countText = if (guideView) stringResource(R.string.content_live_guide_view)
+    else groupedCountText(R.plurals.content_live_channel_count, count)
     ProvidePageCrumb { owner -> PageCrumb(categoryLabel, countText, owner = owner) { categoryPicker = true } }
 
     // The guide is read for what is actually on screen. Watching the visible range rather than each
@@ -203,16 +195,6 @@ fun LiveScreen(
 
     // Changing category scrolls back to the top: the position of the old list means nothing in the new one.
     LaunchedEffect(selected) { listState.scrollToItem(0) }
-
-    // "Start on: Last channel · Live TV": its category, the channel in the preview, its row scrolled to
-    // once loaded. With Live preview off it is only shown, not played — opening Live TV is not watching.
-    LaunchedEffect(Unit) {
-        val channel = vm.applyStartupSelection() ?: return@LaunchedEffect
-        if (settings.livePreviewEnabled.first()) tuner.preview(channel.id)
-        withTimeoutOrNull(STARTUP_ROW_WAIT_MS) {
-            snapshotFlow { channels.itemSnapshotList.indexOfLoaded { it.id == channel.id } }.first { it >= 0 }
-        }?.let { listState.scrollToItem(it) }
-    }
 
     // The guide grid of Guide view reads through the TV Guide's own view model (its rows, its order).
     val guideVm: tv.own.owntv.mobile.ui.screens.guide.GuideViewModel = koinViewModel()
@@ -282,9 +264,7 @@ fun LiveScreen(
             onRefresh = vm::refresh,
             modifier = Modifier.fillMaxSize(),
         ) {
-            if (categories.firstOrNull { it.key == selected }?.sealed == true) {
-                tv.own.owntv.mobile.ui.categorylock.LockedCategoryState(onEnterPin = { lock.enterPin(selected) })
-            } else if (guideView) {
+            if (guideView) {
                 LiveGuideGrid(
                     guide = guideVm,
                     category = selected,
@@ -393,15 +373,10 @@ fun LiveScreen(
         LiveCategoryMenu(
             title = name,
             custom = category.key is LiveKey.Custom,
-            onMove = { kind -> lock.guarded(category.key, category.sealed, SealedCategoryAction.MOVE) { vm.moveCategory(category.key, kind) } },
-            onHide = { lock.guarded(category.key, category.sealed, SealedCategoryAction.HIDE) { vm.hideCategory(category.key) } },
-            onRestore = {
-                categoryMenuFor = null
-                lock.guarded(category.key, category.sealed, SealedCategoryAction.RESTORE) { restoreFor = category }
-            },
+            onMove = { kind -> vm.moveCategory(category.key, kind) },
+            onHide = { vm.hideCategory(category.key) },
+            onRestore = { categoryMenuFor = null; restoreFor = category },
             onDismiss = { categoryMenuFor = null },
-            locked = tv.own.owntv.mobile.ui.categorylock.lockMenuState(category.key, category.locked),
-            onToggleLock = { lock.toggleLock(category.key) },
         )
     }
     catchupFor?.let { channel ->
@@ -553,6 +528,3 @@ private val TOOLS_TOP = 26.dp
 
 /** The room between the crumb and the preview (`.video` at 122). */
 private val PREVIEW_TOP = 20.dp
-
-/** How long the start-up channel's row is waited for before the list is left where it is. */
-internal const val STARTUP_ROW_WAIT_MS = 3_000L

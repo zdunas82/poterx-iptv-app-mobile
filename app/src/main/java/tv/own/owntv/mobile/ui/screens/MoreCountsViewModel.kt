@@ -10,17 +10,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import tv.own.owntv.core.backup.UserDataWriter
 import tv.own.owntv.core.companion.CompanionServerState
-import tv.own.owntv.core.categorylock.lockAwareCount
-import tv.own.owntv.core.categorylock.sealedCategoryIds
 import tv.own.owntv.core.customize.CustomizationStore
-import tv.own.owntv.core.customize.SectionCustomizations
-import tv.own.owntv.core.customize.sealsItemIn
 import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.database.dao.DownloadDao
 import tv.own.owntv.core.database.dao.HistoryDao
@@ -130,57 +125,42 @@ class MoreCountsViewModel(
     val syncOn: StateFlow<Boolean> = localSync.hostState.map { it is CompanionServerState.Listening }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    /** Each type's browse view; items in a category a lock still keeps shut stay off both pages. */
-    private val visible: Flow<Map<MediaType, SectionCustomizations>> = ctx.flatMapLatest { c ->
-        if (c.profileId < 0) flowOf(emptyMap())
-        else combine(LISTED.map { t -> customize.observeVisible(c.profileId, t).map { t to it } }) { it.toMap() }
-    }
-
     /** Read again whenever the favourite counts change, so starring or removing shows at once. */
-    val favouriteLists: StateFlow<FavouriteLists> = combine(ctx, favorites, visible) { c, _, v -> c to v }
-        .flatMapLatest { (c, v) -> flow { emit(loadFavourites(c, Sealed(v))) } }
+    val favouriteLists: StateFlow<FavouriteLists> = combine(ctx, favorites) { c, _ -> c }
+        .flatMapLatest { c -> flow { emit(loadFavourites(c)) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FavouriteLists())
 
-    val historyLists: StateFlow<HistoryLists> = combine(ctx, history, visible) { c, _, v -> c to v }
-        .flatMapLatest { (c, v) -> flow { emit(loadHistory(c, Sealed(v))) } }
+    val historyLists: StateFlow<HistoryLists> = combine(ctx, history) { c, _ -> c }
+        .flatMapLatest { c -> flow { emit(loadHistory(c)) } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HistoryLists())
-
-    private class Sealed(private val visible: Map<MediaType, SectionCustomizations>) {
-        fun holds(type: MediaType, categoryId: Long?) = visible[type]?.sealsItemIn(categoryId) == true
-    }
 
     private fun ids(c: ActiveProfileSources, type: MediaType) = c.sourceIdsFor(type).ifEmpty { listOf(-1L) }
 
-    private suspend fun loadFavourites(c: ActiveProfileSources, sealed: Sealed): FavouriteLists {
+    private suspend fun loadFavourites(c: ActiveProfileSources): FavouriteLists {
         if (c.profileId < 0) return FavouriteLists()
         val key = ContentOrderEntity.FAV_CONTEXT
         val live = channelDao.snapshotFavoritesManual(c.profileId, key, ids(c, MediaType.LIVE), LIST_LIMIT)
-            .filterNot { sealed.holds(MediaType.LIVE, it.categoryId) }
         val onNow = if (live.isEmpty()) emptyMap() else epgReader.nowProgrammesFor(
-            live, customize.observeVisible(c.profileId, MediaType.LIVE).first(), settings.epgOffsetMinutes.first(),
+            live, customize.observe(c.profileId, MediaType.LIVE).first(), settings.epgOffsetMinutes.first(),
         )
         return FavouriteLists(
             live = live,
             onNow = onNow,
-            movies = movieDao.snapshotFavoritesManual(c.profileId, key, ids(c, MediaType.MOVIE), LIST_LIMIT)
-                .filterNot { sealed.holds(MediaType.MOVIE, it.categoryId) },
-            series = seriesDao.snapshotFavoritesManual(c.profileId, key, ids(c, MediaType.SERIES), LIST_LIMIT)
-                .filterNot { sealed.holds(MediaType.SERIES, it.categoryId) },
+            movies = movieDao.snapshotFavoritesManual(c.profileId, key, ids(c, MediaType.MOVIE), LIST_LIMIT),
+            series = seriesDao.snapshotFavoritesManual(c.profileId, key, ids(c, MediaType.SERIES), LIST_LIMIT),
         )
     }
 
-    private suspend fun loadHistory(c: ActiveProfileSources, sealed: Sealed): HistoryLists {
+    private suspend fun loadHistory(c: ActiveProfileSources): HistoryLists {
         val pid = c.profileId
         if (pid < 0) return HistoryLists()
         suspend fun watched(type: MediaType) = historyDao.getForProfileType(pid, type).associate { it.itemId to it.watchedAt }
-        val live = channelDao.recentlyWatchedWithTimestampFiltered(pid, ids(c, MediaType.LIVE), LIST_LIMIT).first()
-            .filterNot { sealed.holds(MediaType.LIVE, it.channel.categoryId) }.map {
+        val live = channelDao.recentlyWatchedWithTimestampFiltered(pid, ids(c, MediaType.LIVE), LIST_LIMIT).first().map {
             HistoryEntry(MediaType.LIVE, it.channel.id, it.channel.name, null, it.channel, null, null, it.watchedAt, 0L, 0L)
         }
         val movieAt = watched(MediaType.MOVIE)
         val movieProgress = progressDao.getForProfileType(pid, MediaType.MOVIE).associateBy { it.itemId }
-        val movies = movieDao.recentlyWatchedSnapshot(pid, ids(c, MediaType.MOVIE), LIST_LIMIT)
-            .filterNot { sealed.holds(MediaType.MOVIE, it.categoryId) }.map { m ->
+        val movies = movieDao.recentlyWatchedSnapshot(pid, ids(c, MediaType.MOVIE), LIST_LIMIT).map { m ->
             val p = movieProgress[m.id]
             HistoryEntry(
                 MediaType.MOVIE, m.id, m.name, m.backdropUrl ?: m.posterUrl, null, m.year ?: m.parsedYear, null,
@@ -188,8 +168,7 @@ class MoreCountsViewModel(
             )
         }
         val seriesAt = watched(MediaType.SERIES)
-        val series = seriesDao.recentlyWatchedSnapshot(pid, ids(c, MediaType.SERIES), LIST_LIMIT)
-            .filterNot { sealed.holds(MediaType.SERIES, it.categoryId) }.map { s ->
+        val series = seriesDao.recentlyWatchedSnapshot(pid, ids(c, MediaType.SERIES), LIST_LIMIT).map { s ->
             val episode = progressDao.lastWatchedEpisodeId(pid, s.id)?.let { seriesDao.getEpisodeById(it) }
             val p = episode?.let { progressDao.get(pid, MediaType.EPISODE, it.id) }
             HistoryEntry(
@@ -239,16 +218,13 @@ class MoreCountsViewModel(
             } else {
                 // An empty id list makes the IN clause match nothing useful — the sentinel every
                 // other count flow in the app uses.
-                // What a locked category holds leaves the counts too, so they agree with the lists.
-                fun count(type: MediaType, all: (Long, List<Long>) -> Flow<Int>, excluding: (Long, List<Long>, List<Long>) -> Flow<Int>) =
-                    lockAwareCount(customize.sealedCategoryIds(c.profileId, type), { all(c.profileId, ids(c, type)) }) { excluding(c.profileId, ids(c, type), it) }
                 combine(
-                    if (favorites) count(MediaType.LIVE, channelDao::countFavorites, channelDao::countFavoritesExcluding)
-                    else count(MediaType.LIVE, channelDao::countHistory, channelDao::countHistoryExcluding),
-                    if (favorites) count(MediaType.MOVIE, movieDao::countFavorites, movieDao::countFavoritesExcluding)
-                    else count(MediaType.MOVIE, movieDao::countHistory, movieDao::countHistoryExcluding),
-                    if (favorites) count(MediaType.SERIES, seriesDao::countFavorites, seriesDao::countFavoritesExcluding)
-                    else count(MediaType.SERIES, seriesDao::countHistory, seriesDao::countHistoryExcluding),
+                    if (favorites) channelDao.countFavorites(c.profileId, ids(c, MediaType.LIVE))
+                    else channelDao.countHistory(c.profileId, ids(c, MediaType.LIVE)),
+                    if (favorites) movieDao.countFavorites(c.profileId, ids(c, MediaType.MOVIE))
+                    else movieDao.countHistory(c.profileId, ids(c, MediaType.MOVIE)),
+                    if (favorites) seriesDao.countFavorites(c.profileId, ids(c, MediaType.SERIES))
+                    else seriesDao.countHistory(c.profileId, ids(c, MediaType.SERIES)),
                     ::TypeCounts,
                 )
             }
@@ -258,7 +234,5 @@ class MoreCountsViewModel(
     private companion object {
         /** Enough for any real list, bounded so a runaway history cannot load the whole catalogue. */
         const val LIST_LIMIT = 500
-
-        val LISTED = listOf(MediaType.LIVE, MediaType.MOVIE, MediaType.SERIES)
     }
 }

@@ -17,14 +17,10 @@ fun SettingsLeafPage(leaf: SettingsLeaf, onSetup: (SetupEntry) -> Unit) {
         !in OWN_CRUMB -> SettingsCrumb(null, leaf.group)
         else -> Unit
     }
-    // Poterx: a locked build shows its own Playlists and EPG pages (refresh only, no addresses), its
-    // Account page, and a note in place of Add a source.
-    val locked = tv.own.owntv.mobile.poterx.LockedSource.enabled
     when (leaf) {
-        SettingsLeaf.PLAYLISTS -> if (locked) tv.own.owntv.mobile.poterx.LockedSourcesPage() else SettingsPlaylistsPage()
-        SettingsLeaf.ADD_SOURCE -> if (locked) tv.own.owntv.mobile.poterx.LockedInfoPage() else AddSourcePage(onSetup)
-        SettingsLeaf.EPG_SOURCES -> if (locked) tv.own.owntv.mobile.poterx.LockedGuidePage() else SettingsEpgSourcesPage()
-        SettingsLeaf.ACCOUNT -> tv.own.owntv.mobile.poterx.LockedAccountPage()
+        SettingsLeaf.PLAYLISTS -> SettingsPlaylistsPage()
+        SettingsLeaf.ADD_SOURCE -> AddSourcePage(onSetup)
+        SettingsLeaf.EPG_SOURCES -> SettingsEpgSourcesPage()
         SettingsLeaf.HIGHLIGHT -> SettingsHighlightPage()
         SettingsLeaf.GLASS_EFFECT -> SettingsGlassPage()
         SettingsLeaf.FONTS -> SettingsFontsPage()
@@ -49,7 +45,7 @@ fun SettingsLeafPage(leaf: SettingsLeaf, onSetup: (SetupEntry) -> Unit) {
 }
 
 /** Pages whose crumb carries a count of their own. */
-private val OWN_CRUMB = setOf(SettingsLeaf.PLAYLISTS, SettingsLeaf.EPG_SOURCES, SettingsLeaf.ACCOUNT, SettingsLeaf.CUSTOMIZE, SettingsLeaf.GLASS_EFFECT)
+private val OWN_CRUMB = setOf(SettingsLeaf.PLAYLISTS, SettingsLeaf.EPG_SOURCES, SettingsLeaf.CUSTOMIZE, SettingsLeaf.GLASS_EFFECT)
 
 /** What a settings route calls itself in the header, or null when it is not one. */
 fun settingsPageTitleRes(route: String?): Int? = when (route) {

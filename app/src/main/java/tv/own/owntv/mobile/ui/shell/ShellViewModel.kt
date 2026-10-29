@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import tv.own.owntv.core.content.AdultCategoryClassifier
-import tv.own.owntv.core.customize.CustomizationStore
 import tv.own.owntv.core.database.dao.CategoryDao
 import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.database.dao.ProfileDao
@@ -37,7 +36,6 @@ class ShellViewModel(
     private val categoryDao: CategoryDao,
     private val profileDao: ProfileDao,
     private val settings: SettingsRepository,
-    private val customize: CustomizationStore,
 ) : ViewModel() {
 
     /** Core's rule, unchanged — the same set the TV app's rail is built from. */
@@ -84,15 +82,15 @@ class ShellViewModel(
      */
     suspend fun resolveStartup(): StartupTarget {
         val ctx = activeProfileSources(settings, sourceDao).first { it.profileId >= 0L }
-        return when (val mode = settings.startupMode(ctx.profileId).first()) {
+        return when (settings.startupMode(ctx.profileId).first()) {
             StartupMode.HOME -> StartupTarget.Home
             StartupMode.FAVORITES -> StartupTarget.Favorites
-            StartupMode.LAST_CHANNEL, StartupMode.LAST_CHANNEL_GUIDE, StartupMode.LAST_CHANNEL_LIVE -> {
+            StartupMode.LAST_CHANNEL -> {
                 val channel = channelDao.recentlyWatched(ctx.profileId, 1).first().firstOrNull()
-                when {
-                    channel == null || !isVisible(channel, ctx.profileId, ctx.sources.map { it.id }.toSet()) -> StartupTarget.Home
-                    mode == StartupMode.LAST_CHANNEL -> StartupTarget.Channel(channel.id)
-                    else -> StartupTarget.ChannelIn(channel, guide = mode == StartupMode.LAST_CHANNEL_GUIDE)
+                if (channel != null && isVisible(channel, ctx.profileId, ctx.sources.map { it.id }.toSet())) {
+                    StartupTarget.Channel(channel.id)
+                } else {
+                    StartupTarget.Home
                 }
             }
             StartupMode.SPECIFIC_CHANNEL -> {
@@ -111,12 +109,10 @@ class ShellViewModel(
         }
     }
 
-    /** A channel the profile cannot reach must not be opened by a setting the profile did not set, nor one
-     *  in a locked category: a launch starts with every lock shut. */
+    /** A channel the profile cannot reach must not be opened by a setting the profile did not set. */
     private suspend fun isVisible(channel: ChannelEntity, profileId: Long, sourceIds: Set<Long>): Boolean =
         channel.sourceId in sourceIds &&
-            AdultCategoryClassifier.allows(profileId, channel.categoryId, profileDao, categoryDao) &&
-            !customize.sealsCategory(profileId, channel.categoryId)
+            AdultCategoryClassifier.allows(profileId, channel.categoryId, profileDao, categoryDao)
 }
 
 /** Where a launch lands. */
@@ -125,31 +121,21 @@ sealed interface StartupTarget {
     data object Favorites : StartupTarget
     data class Channel(val id: Long) : StartupTarget
 
-    /** The TV Guide ([guide]) or Live TV, on [channel]'s category with the channel in the preview. */
-    data class ChannelIn(val channel: ChannelEntity, val guide: Boolean) : StartupTarget
-
     /** The chosen channel is gone — the playlist dropped it, or a re-sync renamed it. */
     data object ChannelUnavailable : StartupTarget
 }
 
 /**
- * "Start on: Favorites" or "Start on: Last channel · Live TV / TV Guide", handed to that screen.
+ * "Start on: Favorites", handed to Live TV.
  *
- * The shell decides it and the screen acts on it, and the two are built at different moments on
- * different screens, so it is a one-shot the shell sets and the screen takes exactly once — a second
- * visit in the same session is an ordinary visit.
+ * The shell decides it and the Live TV screen acts on it, and the two are built at different moments
+ * on different screens, so it is a one-shot the shell sets and Live TV takes exactly once — a second
+ * visit to Live TV in the same session is an ordinary visit.
  */
 class StartupLiveSelection {
     private var pendingFavorites = false
-    private var pendingChannel: StartupTarget.ChannelIn? = null
 
     fun requestFavorites() { pendingFavorites = true }
 
     fun consumeFavorites(): Boolean = pendingFavorites.also { pendingFavorites = false }
-
-    fun requestChannel(target: StartupTarget.ChannelIn) { pendingChannel = target }
-
-    /** The channel to open on, if the request was for this screen — Live TV ([guide] false) or the TV Guide. */
-    fun consumeChannel(guide: Boolean): ChannelEntity? =
-        pendingChannel?.takeIf { it.guide == guide }?.channel?.also { pendingChannel = null }
 }

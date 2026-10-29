@@ -8,9 +8,6 @@ import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
-import tv.own.owntv.core.categorylock.CategoryRelock
-import tv.own.owntv.mobile.ui.categorylock.CategoryLockViewModel
-import tv.own.owntv.mobile.ui.categorylock.SettingsPinViewModel
 import tv.own.owntv.mobile.ui.profiles.ProfileGateSession
 import tv.own.owntv.mobile.ui.profiles.ProfilesViewModel
 import tv.own.owntv.mobile.ui.screens.ContentActions
@@ -26,14 +23,6 @@ val shellModule = module {
     // Set by the shell on launch, taken by Live TV when it opens — neither owns the other.
     singleOf(::StartupLiveSelection)
     viewModelOf(::ShellViewModel)
-    // Category locks: each browse screen's PIN prompts, and the app-wide relock on leaving the app or
-    // changing profile. On the main thread, because what it seals it stops in the players.
-    viewModelOf(::CategoryLockViewModel)
-    viewModelOf(::SettingsPinViewModel)
-    // One Settings PIN visit for the whole app: the guarded pages are routes of their own.
-    single { tv.own.owntv.mobile.ui.categorylock.SettingsPinSession() }
-    single { CategoryRelock(CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate), get(), get(), get()) }
-    single { tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost() }
     viewModel { ProfilesViewModel(get(), get(), get(), androidContext()) }
     viewModelOf(::ProfileGateSession)
     // The counts the More rows and the Favourites / History chips carry.
@@ -45,18 +34,5 @@ val shellModule = module {
     // An import has to outlive the wizard screen that started it — "Run in background" is exactly
     // that promise — so it runs here rather than in a ViewModel that dies with its navigation entry.
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-    viewModel { SetupViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get(), get()) }
-    // Poterx: tells a wrong password, no internet, an ISP block and a panel outage apart.
-    single { tv.own.owntv.mobile.poterx.PoterxReachability(get(), get(), get()) }
-    // Poterx: the daily heartbeat and crash report to the provider's server.
-    single { tv.own.owntv.mobile.poterx.PoterxTelemetry(androidContext(), get()) }
-    // Poterx: updates from the provider's own server when one is built in, else core's GitHub Releases.
-    single<tv.own.owntv.mobile.poterx.AppUpdater> {
-        val url = tv.own.owntv.mobile.poterx.LockedSource.account?.updateUrl.orEmpty()
-        if (tv.own.owntv.mobile.poterx.LockedSource.enabled && url.startsWith("https://")) {
-            tv.own.owntv.mobile.poterx.PoterxUpdater(androidContext(), get(), get(), url)
-        } else {
-            tv.own.owntv.mobile.poterx.CoreUpdater(get())
-        }
-    }
+    viewModel { SetupViewModel(get(), get(), get(), get(), androidContext(), get(), get()) }
 }

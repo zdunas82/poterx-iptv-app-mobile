@@ -93,10 +93,6 @@ class ProfilesViewModel(
     }
 
     fun delete(profile: ProfileEntity) {
-        viewModelScope.launch {
-            manager.delete(profile)
-            // Poterx: a second list belongs to its profile; once the profile is gone nothing should refresh it.
-            tv.own.owntv.mobile.poterx.PoterxAccount.pruneOrphanSourcesSoon()
-        }
+        viewModelScope.launch { manager.delete(profile) }
     }
 }

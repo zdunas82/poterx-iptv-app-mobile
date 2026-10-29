@@ -55,7 +55,6 @@ fun CustomizeCategoriesPane(
     vm: CustomizeViewModel,
     onOpenItems: (CustomizeCatRow) -> Unit,
     modifier: Modifier = Modifier,
-    settingsPinVm: tv.own.owntv.mobile.ui.categorylock.SettingsPinViewModel = org.koin.androidx.compose.koinViewModel(),
 ) {
     val section by vm.section.collectAsStateWithLifecycle()
     val rows by vm.rows.collectAsStateWithLifecycle()
@@ -64,7 +63,6 @@ fun CustomizeCategoriesPane(
     val currentSort by vm.currentSort.collectAsStateWithLifecycle()
     val visibilityFilter by vm.visibilityFilter.collectAsStateWithLifecycle()
     val pinLock by vm.pinLock.collectAsStateWithLifecycle()
-    val settingsPin by settingsPinVm.lock.collectAsStateWithLifecycle()
     val anchorKey by vm.rangeAnchorKey.collectAsStateWithLifecycle()
     val rangeMode by vm.rangeMode.collectAsStateWithLifecycle()
     val endKey by vm.rangeEndKey.collectAsStateWithLifecycle()
@@ -196,15 +194,6 @@ fun CustomizeCategoriesPane(
             } else {
                 StageMenuItem(plainLabel(stringResource(R.string.settings_customize_change_pin)), onClick = { close(); editingPin = PinEdit.CHANGE }, icon = MobileIcons.Lock)
                 StageMenuItem(stringResource(R.string.settings_customize_remove_lock), onClick = { close(); editingPin = PinEdit.REMOVE }, icon = MobileIcons.Lock)
-                // Settings can ask for this same PIN; with no PIN there is nothing to ask for, so it is hidden.
-                StageMenuItem(
-                    stringResource(
-                        R.string.settings_customize_settings_pin_button,
-                        stringResource(if (settingsPin.askOnOpen) R.string.common_on else R.string.common_off),
-                    ),
-                    onClick = { close(); settingsPinVm.setAskOnOpen(!settingsPin.askOnOpen) },
-                    icon = MobileIcons.Lock,
-                )
             }
             StageMenuItem(stringResource(R.string.settings_customize_restore_defaults), onClick = { close(); restoring = true }, icon = MobileIcons.Refresh)
         }

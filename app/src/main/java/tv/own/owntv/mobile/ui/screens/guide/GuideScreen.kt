@@ -61,21 +61,17 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.core.epg.displayLogoUrl
-import tv.own.owntv.core.categorylock.SealedCategoryAction
 import tv.own.owntv.core.live.LiveKey
 import tv.own.owntv.core.live.ProviderTags
 import tv.own.owntv.core.model.RecordingStatus
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.R
-import tv.own.owntv.mobile.ui.components.indexOfLoaded
 import tv.own.owntv.mobile.ui.components.ChannelLogoImage
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
@@ -93,14 +89,12 @@ import tv.own.owntv.mobile.ui.screens.live.LiveCategory
 import tv.own.owntv.mobile.ui.screens.live.LiveCategoryMenu
 import tv.own.owntv.mobile.ui.screens.live.LiveTuner
 import tv.own.owntv.mobile.ui.screens.live.LiveViewModel
-import tv.own.owntv.mobile.ui.screens.live.STARTUP_ROW_WAIT_MS
 import tv.own.owntv.mobile.ui.screens.live.epgShiftLabel
 import tv.own.owntv.mobile.ui.screens.live.label
 import tv.own.owntv.mobile.ui.shell.LocalMiniRequested
 import tv.own.owntv.mobile.ui.shell.ProvidePageCrumb
 import tv.own.owntv.mobile.ui.shell.LocalStreamOnScreen
 import tv.own.owntv.mobile.ui.shell.PageCrumb
-import tv.own.owntv.mobile.ui.shell.StartupLiveSelection
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageButton
 import tv.own.owntv.mobile.ui.stage.StageButtonStyle
@@ -176,7 +170,6 @@ fun GuideScreen(
     var channelMenuFor by remember { mutableStateOf<ChannelEntity?>(null) }
     var categoriesOpen by remember { mutableStateOf(false) }
     var categoryMenuFor by remember { mutableStateOf<LiveCategory?>(null) }
-    val lock = tv.own.owntv.mobile.ui.categorylock.rememberCategoryLock(tv.own.owntv.core.model.MediaType.LIVE)
     var restoreFor by remember { mutableStateOf<LiveCategory?>(null) }
     var dayOpen by remember { mutableStateOf(false) }
     var orderOpen by remember { mutableStateOf(false) }
@@ -243,23 +236,6 @@ fun GuideScreen(
         value = p?.let { ch to it }
     }
     val top = picked ?: fallback
-
-    // "Start on: Last channel · TV Guide": its category, its row scrolled to, and what is on it now picked
-    // and previewing, as a tap on the channel does. Only the grid has the preview; other views just show it.
-    val startupSelection: StartupLiveSelection = koinInject()
-    val settings: SettingsRepository = koinInject()
-    LaunchedEffect(Unit) {
-        val channel = startupSelection.consumeChannel(guide = true) ?: return@LaunchedEffect
-        vm.select(live.categoryKeyOf(channel))
-        withTimeoutOrNull(STARTUP_ROW_WAIT_MS) {
-            snapshotFlow { channels.itemSnapshotList.indexOfLoaded { it.id == channel.id } }.first { it >= 0 }
-        }?.let { listState.scrollToItem(it) }
-        val now = System.currentTimeMillis()
-        val onNow = vm.row(channel).firstOrNull { it.startMs <= now && now < it.stopMs } ?: return@LaunchedEffect
-        picked = channel to onNow
-        val grid = (settings.guideView.first() ?: SettingsRepository.GuideView.GRID) == SettingsRepository.GuideView.GRID
-        if (grid && settings.guidePreview.first()) preview(channel)
-    }
 
     // Now: back to today, the grid centred on the now-line (it opens so too).
     fun jumpToNow() = vm.requestNow()
@@ -330,9 +306,7 @@ fun GuideScreen(
         if (stats?.mismatchedIds == true) GuideNotice(stringResource(R.string.content_epg_mismatched_ids))
 
         Box(Modifier.weight(1f)) {
-            if (categories.firstOrNull { it.key == selected }?.sealed == true) {
-                tv.own.owntv.mobile.ui.categorylock.LockedCategoryState(onEnterPin = { lock.enterPin(selected) })
-            } else if (channels.itemCount == 0) {
+            if (channels.itemCount == 0) {
                 EmptyGuide(
                     query = query,
                     stats = stats,
@@ -410,20 +384,13 @@ fun GuideScreen(
         LiveCategoryMenu(
             title = remember(category) { ProviderTags.parse(category.title.orEmpty()).name },
             custom = category.key is LiveKey.Custom,
-            onMove = { kind -> lock.guarded(category.key, category.sealed, SealedCategoryAction.MOVE) { live.moveCategory(category.key, kind) } },
+            onMove = { kind -> live.moveCategory(category.key, kind) },
             onHide = {
-                lock.guarded(category.key, category.sealed, SealedCategoryAction.HIDE) {
-                    live.hideCategory(category.key)
-                    if (selected == category.key) vm.select(LiveKey.All)
-                }
+                live.hideCategory(category.key)
+                if (selected == category.key) vm.select(LiveKey.All)
             },
-            onRestore = {
-                categoryMenuFor = null
-                lock.guarded(category.key, category.sealed, SealedCategoryAction.RESTORE) { restoreFor = category }
-            },
+            onRestore = { categoryMenuFor = null; restoreFor = category },
             onDismiss = { categoryMenuFor = null },
-            locked = tv.own.owntv.mobile.ui.categorylock.lockMenuState(category.key, category.locked),
-            onToggleLock = { lock.toggleLock(category.key) },
         )
     }
     restoreFor?.let { category ->

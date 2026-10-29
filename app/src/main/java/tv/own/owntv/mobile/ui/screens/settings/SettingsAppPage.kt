@@ -78,11 +78,7 @@ fun AboutPage(onOpenLanguage: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val palette = LocalStagePalette.current
     val settings: tv.own.owntv.core.settings.SettingsRepository = org.koin.compose.koinInject()
-    val updates: tv.own.owntv.mobile.poterx.AppUpdater = org.koin.compose.koinInject()
-    // Poterx: a locked build keeps the repository and the licence line out of the customer's way and
-    // names the provider's support group, not the project's.
-    val locked = tv.own.owntv.mobile.poterx.LockedSource.enabled
-    val telegramLink = if (locked) tv.own.owntv.mobile.poterx.POTERX_TELEGRAM_LINK else TELEGRAM_LINK
+    val updates: tv.own.owntv.core.update.UpdateManager = org.koin.compose.koinInject()
     val updateState by updates.state.collectAsStateWithLifecycle()
     val checkedAt by settings.lastUpdateCheckAt.collectAsStateWithLifecycle(initialValue = null)
     var updateSheet by remember { mutableStateOf(false) }
@@ -117,7 +113,7 @@ fun AboutPage(onOpenLanguage: () -> Unit, modifier: Modifier = Modifier) {
                 Text(
                     listOfNotNull(
                         checkedAt?.let { stringResource(R.string.more_about_checked, loggedWhen(it).replaceFirstChar { c -> c.lowercase(LocalConfiguration.current.locales[0]) }) },
-                        if (locked) null else stringResource(R.string.more_about_license),
+                        stringResource(R.string.more_about_license),
                     ).joinToString(sep),
                     style = stageText(11f, 500),
                     color = palette.muted,
@@ -139,12 +135,12 @@ fun AboutPage(onOpenLanguage: () -> Unit, modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
                 .background(palette.ink.copy(alpha = 0.045f))
-                .stageClickable(interaction, { openLink(context, "https://$telegramLink") }, null)
+                .stageClickable(interaction, { openLink(context, "https://$TELEGRAM_LINK") }, null)
                 .padding(14.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            remember(telegramLink) { CompanionLink.renderQr("https://$telegramLink") }?.let { qr ->
+            remember { CompanionLink.renderQr("https://$TELEGRAM_LINK") }?.let { qr ->
                 Image(
                     bitmap = qr.asImageBitmap(),
                     contentDescription = stringResource(R.string.settings_telegram_qr),
@@ -153,14 +149,14 @@ fun AboutPage(onOpenLanguage: () -> Unit, modifier: Modifier = Modifier) {
             }
             Column {
                 Text(stringResource(R.string.settings_join_telegram), style = stageText(14f, 800), color = palette.text)
-                Text(telegramLink, style = stageText(11f, 500), color = stageAccent.accent)
+                Text(TELEGRAM_LINK, style = stageText(11f, 500), color = stageAccent.accent)
                 Text(stringResource(R.string.more_about_scan_mobile), style = stageText(11f, 500), color = palette.muted)
             }
         }
         @OptIn(ExperimentalLayoutApi::class)
         FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (!locked) StageTool(onClick = { openLink(context, "https://$GITHUB_REPO") }, label = GITHUB_NAME, icon = MobileIcons.Translate)
-            val languages = tv.own.owntv.mobile.poterx.PoterxLocales.packaged.size
+            StageTool(onClick = { openLink(context, "https://$GITHUB_REPO") }, label = GITHUB_NAME, icon = MobileIcons.Translate)
+            val languages = tv.own.owntv.core.i18n.SupportedLocales.all.count { it.packaged }
             StageTool(onClick = onOpenLanguage, label = pluralStringResource(R.plurals.more_about_languages, languages, languages), icon = MobileIcons.Translate)
             StageTool(onClick = { updateSheet = true }, label = stringResource(R.string.settings_check_updates), icon = MobileIcons.Refresh)
         }
@@ -200,12 +196,7 @@ fun SettingsErrorLogPage(modifier: Modifier = Modifier) {
                     StageButton(
                         onClick = {
                             scope.launch {
-                                // Poterx: a locked build writes its own report, masked before it is written —
-                                // core's export lands in MediaStore, where a scrub afterwards reaches nothing.
-                                val path = withContext(Dispatchers.IO) {
-                                    if (tv.own.owntv.mobile.poterx.LockedSource.enabled) tv.own.owntv.mobile.poterx.PoterxPrivacy.exportPlaybackReport(context)
-                                    else PlaybackErrorLog.export(context)
-                                }
+                                val path = withContext(Dispatchers.IO) { PlaybackErrorLog.export(context) }
                                 exportPath = path
                                 exportFailed = path == null
                             }
@@ -287,7 +278,7 @@ private fun LogEntry(entry: PlaybackErrorLog.Entry, line: String, selected: Bool
                     Text(line, style = stageText(11.5f, 500), color = palette.muted)
                     Text(loggedWhen(entry.atMs), style = stageText(11.5f, 500), color = palette.dim)
                     if (selected) {
-                        entry.raw?.let { tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(it) }?.let { Text(it, style = stageText(11.5f, 500), color = palette.dim, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp)) }
+                        entry.raw?.let { Text(it, style = stageText(11.5f, 500), color = palette.dim, maxLines = 3, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp)) }
                         Text(stringResource(R.string.settings_device_details, entry.model, entry.android), style = stageText(11.5f, 500), color = palette.dim, modifier = Modifier.padding(top = 2.dp))
                     }
                 }

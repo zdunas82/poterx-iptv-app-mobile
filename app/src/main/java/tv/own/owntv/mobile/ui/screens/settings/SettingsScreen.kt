@@ -191,12 +191,6 @@ private fun settingsSearch(query: String, all: Map<SettingsGroup, List<SettingSe
 
 /** Rows inside the full pages that are worth finding by their own name. */
 private val LEAF_ROWS: List<Pair<SettingsLeaf, Int>> = listOf(
-    // Poterx: the Account page's rows (a locked build only; the page itself is its group's row there).
-    SettingsLeaf.ACCOUNT to R.string.poterx_account_status,
-    SettingsLeaf.ACCOUNT to R.string.poterx_test_channel,
-    SettingsLeaf.ACCOUNT to R.string.poterx_sign_out,
-    // Set per playlist, in its Names sheet: the hit opens the list of playlists to pick one from.
-    SettingsLeaf.PLAYLISTS to R.string.settings_sources_clean_names_toggle,
     SettingsLeaf.EPG_SOURCES to R.string.settings_epg_sources_auto_refresh_title,
     SettingsLeaf.EPG_SOURCES to R.string.settings_epg_sources_use_logos,
     SettingsLeaf.FONTS to R.string.settings_font_size,
