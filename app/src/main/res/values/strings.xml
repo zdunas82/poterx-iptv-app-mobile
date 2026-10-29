@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Poterx TV</string>
+
+    <!-- Poterx: locked build (the TV app's strings, minus the VPN and the remote-only ones) -->
+    <string name="poterx_profile_default">Home</string>
+    <string name="poterx_profile_added">New profile</string>
+    <string name="poterx_connecting">Connecting to your TV service…</string>
+    <string name="poterx_no_account">This build carries no account. Contact your provider.</string>
+    <string name="poterx_login_title">Sign in</string>
+    <string name="poterx_login_body">Enter the username and password you received from your provider.</string>
+    <string name="poterx_login_title_another">Add another list</string>
+    <string name="poterx_login_body_another">Enter the username and password of the other list. This profile will use it; the other profiles keep theirs.</string>
+    <string name="poterx_profile_add_line">With its own username and password: a different channel list</string>
+    <string name="poterx_login_checking">Checking the details\u2026</string>
+    <string name="poterx_login_wrong">Wrong username or password. Check the letter case and try again.</string>
+    <string name="poterx_login_wrong_twice">If the details are certainly right, your internet provider may be blocking the TV server: try mobile data or a VPN app.</string>
+    <string name="poterx_login_expired">Your subscription has run out. Contact your provider to renew it.</string>
+    <string name="poterx_login_offline">No internet connection. Check the television\u2019s network.</string>
+    <string name="poterx_login_panel_down">The television server is not answering right now. Try again in a moment.</string>
+    <string name="poterx_blocked_title">Your internet provider blocks the connection to the television</string>
+    <string name="poterx_blocked_dns">Your internet provider\u2019s network cannot find the TV server (a DNS block). Mobile data or a VPN app gets around it.</string>
+    <string name="poterx_blocked_connection">Your internet provider cuts the connection to the TV server. Mobile data or a VPN app gets around it.</string>
+    <string name="poterx_blocked_page">Your internet provider serves a block page instead of the TV server. Mobile data or a VPN app gets around it.</string>
+    <string name="poterx_sources_title">Channel list</string>
+    <string name="poterx_refresh_now">Refresh now</string>
+    <string name="poterx_last_refresh">Last refresh: %1$s</string>
+    <string name="poterx_refresh_auto">Automatic refresh</string>
+    <string name="poterx_refresh_auto_description">How often the channel list is downloaded again by itself.</string>
+    <string name="poterx_account_title">Account</string>
+    <string name="poterx_account_description">Who is signed in, subscription status, sign out</string>
+    <string name="poterx_account_user_description">The account this television is signed in with</string>
+    <string name="poterx_account_status">Status</string>
+    <string name="poterx_account_status_description">As reported by your provider · OK checks again</string>
+    <string name="poterx_account_checking">Checking…</string>
+    <string name="poterx_account_active">Active</string>
+    <string name="poterx_account_expired">Expired</string>
+    <string name="poterx_account_rejected">Sign-in refused</string>
+    <string name="poterx_account_unreachable">Server not reachable</string>
+    <string name="poterx_account_unknown">Unknown</string>
+    <string name="poterx_account_blocked">Blocked</string>
+    <string name="poterx_account_trial">Trial account</string>
+    <string name="poterx_account_expiry">Valid until</string>
+    <string name="poterx_account_expiry_description">When the subscription ends</string>
+    <string name="poterx_account_no_expiry">No end date</string>
+    <string name="poterx_account_connections">Connections</string>
+    <string name="poterx_account_connections_description">Streams in use now and the most allowed at once</string>
+    <string name="poterx_account_connections_of">%1$d of %2$d</string>
+    <string name="poterx_sign_out">Sign out</string>
+    <string name="poterx_sign_out_description">Removes the channel list and guide from this television; another account can then sign in</string>
+    <string name="poterx_test_channel">Test channel</string>
+    <string name="poterx_test_channel_description">Receive updates before customers do · asks for the service PIN</string>
+    <string name="poterx_update_required_title">Update required</string>
+    <string name="poterx_sign_out_body">The channel list, guide and profiles on this television will be removed. You will need your username and password to sign in again.</string>
+    <string name="poterx_service_pin">Enter the service PIN</string>
+    <string name="poterx_contact_title">Your provider</string>
+    <string name="poterx_device_id">Device ID</string>
+    <string name="poterx_device_id_description">Give it to your provider when reporting a problem</string>
+    <string name="poterx_contact_line">Contact: %1$s</string>
+    <string name="poterx_guide_feed">Programme guide</string>
+    <string name="poterx_guide_empty">The guide will be set up as soon as you sign in.</string>
+    <string name="poterx_guide_refresh_description">How often the programme guide is downloaded again</string>
+    <string name="poterx_guide_body">The programme guide comes with your subscription and is set up by the app. If a channel shows no programmes, refresh the guide or contact your provider.</string>
+    <string name="poterx_expiry_expired_title">Subscription has ended</string>
+    <string name="poterx_expiry_body">Valid until %1$s. To keep watching, renew it with your provider before that day.</string>
+    <string name="poterx_expiry_expired_body">Access ended on %1$s. Renew it with your provider to watch again.</string>
+    <string name="poterx_expiry_renew">Renew on Telegram</string>
+    <string name="poterx_locked_title">Built-in playlist</string>
+    <string name="poterx_locked_body">%1$s comes with your playlist built in. It cannot be viewed, changed, exported or copied to another device from here. If your channels stop working, contact your provider.</string>
+</resources>

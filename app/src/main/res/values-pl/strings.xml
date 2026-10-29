@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">Poterx TV</string>
+
+    <!-- Poterx: locked build (the TV app's strings, minus the VPN and the remote-only ones) -->
+    <string name="poterx_profile_default">Dom</string>
+    <string name="poterx_profile_added">Nowy profil</string>
+    <string name="poterx_connecting">Łączenie z Twoją telewizją…</string>
+    <string name="poterx_no_account">Ta wersja nie zawiera konta. Skontaktuj się z dostawcą.</string>
+    <string name="poterx_login_title">Zaloguj się</string>
+    <string name="poterx_login_body">Wpisz login i hasło otrzymane od dostawcy.</string>
+    <string name="poterx_login_title_another">Dodaj kolejną listę</string>
+    <string name="poterx_login_body_another">Wpisz login i hasło drugiej listy. Ten profil będzie jej używał, pozostałe profile zachowają swoje.</string>
+    <string name="poterx_profile_add_line">Z własnym loginem i hasłem: inna lista kanałów</string>
+    <string name="poterx_login_checking">Sprawdzanie danych\u2026</string>
+    <string name="poterx_login_wrong">Zły login lub hasło. Sprawdź wielkość liter i spróbuj ponownie.</string>
+    <string name="poterx_login_wrong_twice">Jeśli dane są na pewno poprawne, operator internetu może blokować serwer telewizji: spróbuj przez dane komórkowe albo aplikację VPN.</string>
+    <string name="poterx_login_expired">Twój abonament wygasł. Skontaktuj się z dostawcą, aby go odnowić.</string>
+    <string name="poterx_login_offline">Brak połączenia z internetem. Sprawdź sieć telewizora.</string>
+    <string name="poterx_login_panel_down">Serwer telewizji chwilowo nie odpowiada. Spróbuj za chwilę.</string>
+    <string name="poterx_blocked_title">Twój operator internetu blokuje połączenie z telewizją</string>
+    <string name="poterx_blocked_dns">Sieć Twojego operatora internetu nie pozwala znaleźć serwera telewizji (blokada DNS). Dane komórkowe albo aplikacja VPN omijają tę blokadę.</string>
+    <string name="poterx_blocked_connection">Twój operator internetu odcina połączenie z serwerem telewizji. Dane komórkowe albo aplikacja VPN omijają tę blokadę.</string>
+    <string name="poterx_blocked_page">Twój operator internetu podstawia stronę blokady zamiast serwera telewizji. Dane komórkowe albo aplikacja VPN omijają tę blokadę.</string>
+    <string name="poterx_sources_title">Lista kanałów</string>
+    <string name="poterx_refresh_now">Odśwież teraz</string>
+    <string name="poterx_last_refresh">Ostatnie odświeżenie: %1$s</string>
+    <string name="poterx_refresh_auto">Automatyczne odświeżanie</string>
+    <string name="poterx_refresh_auto_description">Jak często lista kanałów jest pobierana ponownie sama.</string>
+    <string name="poterx_account_title">Konto</string>
+    <string name="poterx_account_description">Kto jest zalogowany, stan abonamentu, wylogowanie</string>
+    <string name="poterx_account_user_description">Konto, na które zalogowany jest ten telewizor</string>
+    <string name="poterx_account_status">Stan</string>
+    <string name="poterx_account_status_description">Według Twojego dostawcy · OK sprawdza ponownie</string>
+    <string name="poterx_account_checking">Sprawdzanie…</string>
+    <string name="poterx_account_active">Aktywne</string>
+    <string name="poterx_account_expired">Wygasło</string>
+    <string name="poterx_account_rejected">Logowanie odrzucone</string>
+    <string name="poterx_account_unreachable">Brak połączenia z serwerem</string>
+    <string name="poterx_account_unknown">Nieznany</string>
+    <string name="poterx_account_blocked">Zablokowane</string>
+    <string name="poterx_account_trial">Konto testowe</string>
+    <string name="poterx_account_expiry">Ważne do</string>
+    <string name="poterx_account_expiry_description">Kiedy kończy się abonament</string>
+    <string name="poterx_account_no_expiry">Bez daty końca</string>
+    <string name="poterx_account_connections">Połączenia</string>
+    <string name="poterx_account_connections_description">Strumienie w użyciu teraz i maksimum naraz</string>
+    <string name="poterx_account_connections_of">%1$d z %2$d</string>
+    <string name="poterx_sign_out">Wyloguj</string>
+    <string name="poterx_sign_out_description">Usuwa listę kanałów i przewodnik z tego telewizora; potem może zalogować się inne konto</string>
+    <string name="poterx_test_channel">Kanał testowy</string>
+    <string name="poterx_test_channel_description">Aktualizacje przed klientami · pyta o PIN serwisowy</string>
+    <string name="poterx_update_required_title">Wymagana aktualizacja</string>
+    <string name="poterx_sign_out_body">Lista kanałów, przewodnik i profile na tym telewizorze zostaną usunięte. Do ponownego zalogowania potrzebny będzie login i hasło.</string>
+    <string name="poterx_service_pin">Podaj PIN serwisowy</string>
+    <string name="poterx_contact_title">Twój dostawca</string>
+    <string name="poterx_device_id">ID urządzenia</string>
+    <string name="poterx_device_id_description">Podaj dostawcy przy zgłaszaniu problemu</string>
+    <string name="poterx_contact_line">Kontakt: %1$s</string>
+    <string name="poterx_guide_feed">Przewodnik programowy</string>
+    <string name="poterx_guide_empty">Przewodnik skonfiguruje się zaraz po zalogowaniu.</string>
+    <string name="poterx_guide_refresh_description">Jak często przewodnik programowy jest pobierany ponownie</string>
+    <string name="poterx_guide_body">Przewodnik programowy jest częścią Twojego abonamentu i konfiguruje go aplikacja. Jeśli jakiś kanał nie ma programu, odśwież przewodnik albo skontaktuj się z dostawcą.</string>
+    <string name="poterx_expiry_expired_title">Subskrypcja wygasła</string>
+    <string name="poterx_expiry_body">Ważne do %1$s. Aby oglądać dalej, przedłuż ją u dostawcy przed tym dniem.</string>
+    <string name="poterx_expiry_expired_body">Dostęp wygasł %1$s. Przedłuż go u dostawcy, aby oglądać ponownie.</string>
+    <string name="poterx_expiry_renew">Przedłuż przez Telegram</string>
+    <string name="poterx_locked_title">Wbudowana lista kanałów</string>
+    <string name="poterx_locked_body">%1$s ma wbudowaną Twoją listę kanałów. Nie można jej tutaj podejrzeć, zmienić, wyeksportować ani skopiować na inne urządzenie. Jeśli kanały przestaną działać, skontaktuj się z dostawcą.</string>
+</resources>

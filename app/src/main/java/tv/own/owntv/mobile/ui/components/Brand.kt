@@ -84,6 +84,17 @@ private fun PixelMark(triangle: Color, modifier: Modifier) {
 @Composable
 fun Wordmark(width: Dp, modifier: Modifier = Modifier) {
     val palette = tv.own.owntv.mobile.ui.stage.LocalStagePalette.current
+    // Poterx: a locked build is the provider's app; its name, not the OwnTV art, in the wordmark's place.
+    if (tv.own.owntv.mobile.poterx.LockedSource.enabled) {
+        androidx.compose.material3.Text(
+            androidx.compose.ui.res.stringResource(R.string.app_name),
+            style = tv.own.owntv.mobile.ui.stage.stageText(width.value * 0.2f, 800),
+            color = if (palette.isLight) palette.text else WordmarkCream,
+            maxLines = 1,
+            modifier = modifier,
+        )
+        return
+    }
     val own = if (palette.isLight) palette.text else WordmarkCream
     val tv = tv.own.owntv.mobile.ui.stage.stageAccent.accent
     androidx.compose.foundation.layout.Box(modifier.size(width, width * 182f / 988f)) {

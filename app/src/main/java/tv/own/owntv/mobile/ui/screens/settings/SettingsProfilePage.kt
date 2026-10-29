@@ -135,9 +135,14 @@ internal fun profileSections(
             onLongClick = { editing = profile },
         )
     }
+    // Poterx: a profile needs a playlist, and an empty one is removed at the next start. A locked
+    // build adds it through the sign-in flow (login and password of its own list), the same as the
+    // "Who's watching?" gate's Add tile.
+    val locked = tv.own.owntv.mobile.poterx.LockedSource.enabled
     val add = SettingItem(
-        "profile_add", MobileIcons.Add, stringResource(R.string.settings_profile_add), stringResource(R.string.settings_profile_add_line),
-        SettingValue.Opens(null), onClick = { adding = true }, pinnable = false,
+        "profile_add", MobileIcons.Add, stringResource(R.string.settings_profile_add),
+        stringResource(if (locked) R.string.poterx_profile_add_line else R.string.settings_profile_add_line),
+        SettingValue.Opens(null), onClick = { if (locked) gateSession.startAddingProfile() else adding = true }, pinnable = false,
     )
     return listOf(SettingSection(null, rows + add))
 }

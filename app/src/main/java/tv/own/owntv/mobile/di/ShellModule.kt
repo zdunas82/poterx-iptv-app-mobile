@@ -45,5 +45,18 @@ val shellModule = module {
     // An import has to outlive the wizard screen that started it — "Run in background" is exactly
     // that promise — so it runs here rather than in a ViewModel that dies with its navigation entry.
     single<CoroutineScope> { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-    viewModel { SetupViewModel(get(), get(), get(), get(), androidContext(), get(), get()) }
+    viewModel { SetupViewModel(get(), get(), get(), get(), androidContext(), get(), get(), get(), get()) }
+    // Poterx: tells a wrong password, no internet, an ISP block and a panel outage apart.
+    single { tv.own.owntv.mobile.poterx.PoterxReachability(get(), get(), get()) }
+    // Poterx: the daily heartbeat and crash report to the provider's server.
+    single { tv.own.owntv.mobile.poterx.PoterxTelemetry(androidContext(), get()) }
+    // Poterx: updates from the provider's own server when one is built in, else core's GitHub Releases.
+    single<tv.own.owntv.mobile.poterx.AppUpdater> {
+        val url = tv.own.owntv.mobile.poterx.LockedSource.account?.updateUrl.orEmpty()
+        if (tv.own.owntv.mobile.poterx.LockedSource.enabled && url.startsWith("https://")) {
+            tv.own.owntv.mobile.poterx.PoterxUpdater(androidContext(), get(), get(), url)
+        } else {
+            tv.own.owntv.mobile.poterx.CoreUpdater(get())
+        }
+    }
 }

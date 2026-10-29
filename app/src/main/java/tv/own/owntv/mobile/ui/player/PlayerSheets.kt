@@ -402,7 +402,12 @@ private fun SpeedSheet(player: PlaybackEngine, onDismiss: () -> Unit) {
 @Composable
 private fun StreamInfoSheet(player: PlaybackEngine, onDismiss: () -> Unit) {
     var rows by remember { mutableStateOf(emptyList<StreamInfoRow>()) }
-    LaunchedEffect(player) { rows = player.streamInfo() }
+    LaunchedEffect(player) {
+        // Poterx: the stream's address (the provider's panel) is not shown on a locked build.
+        rows = player.streamInfo().let { all ->
+            if (tv.own.owntv.mobile.poterx.LockedSource.enabled) all.filterNot { it.value is tv.own.owntv.player.StreamInfoValue.Source } else all
+        }
+    }
     val res = LocalResources.current
     val palette = LocalStagePalette.current
     val title = stringResource(R.string.player_stream_info)
@@ -425,7 +430,7 @@ private fun StreamInfoSheet(player: PlaybackEngine, onDismiss: () -> Unit) {
                         modifier = Modifier.weight(0.38f),
                     )
                     Text(
-                        text = row.value.displayText(res),
+                        text = tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(row.value.displayText(res)),
                         style = stageText(12f, 500),
                         color = palette.text,
                         fontFamily = FontFamily.Monospace,

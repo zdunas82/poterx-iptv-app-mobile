@@ -132,6 +132,8 @@ fun MoreScreen(
                 StageGroupLabel(stringResource(R.string.more_group_your_things))
                 MoreItem(R.string.content_category_favorites, MobileIcons.FavoriteBorder, favorites.total.toString()) { onOpenLeaf(MoreLeaf.FAVORITES) }
                 MoreItem(R.string.content_category_history, MobileIcons.History, history.total.toString()) { onOpenLeaf(MoreLeaf.HISTORY) }
+                // Poterx: Backup and Local sync could copy the built-in account out of the app; a locked build has neither.
+                if (!tv.own.owntv.mobile.poterx.LockedSource.enabled) {
                 StageGroupLabel(stringResource(R.string.more_group_keep_safe))
                 // Never backed up is the one row that warns (`.tag.warn`); a backup says how long ago.
                 val backupValue = lastBackup?.let { relativeShort(it.at) }
@@ -147,6 +149,7 @@ fun MoreScreen(
                     chevron = true,
                 )
                 MoreItem(R.string.local_sync_title, MobileIcons.Phone, stringResource(if (syncOn) R.string.common_on else R.string.common_off)) { onOpenLeaf(MoreLeaf.LOCAL_SYNC) }
+                }
                 StageGroupLabel(stringResource(R.string.settings_app_group))
                 MoreItem(R.string.settings_playback_error_log, MobileIcons.Warning, logCount.toString()) { onOpenLeaf(MoreLeaf.ERROR_LOG) }
                 MoreItem(R.string.settings_about, MobileIcons.Info, BuildConfig.VERSION_NAME) { onOpenLeaf(MoreLeaf.ABOUT) }

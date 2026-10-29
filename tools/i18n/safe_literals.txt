@@ -25,8 +25,8 @@
 1	protocol	app/src/main/java/tv/own/owntv/mobile/MainActivity.kt	pip_action
 1	protocol	app/src/main/java/tv/own/owntv/mobile/MainActivity.kt	toggle
 1	protocol	app/src/main/java/tv/own/owntv/mobile/MainActivity.kt	tv.own.owntv.mobile.PIP
-1	technical	app/src/main/java/tv/own/owntv/mobile/OwnTVMobileApp.kt	ahXN00/OwnTV_Mobile
 1	technical	app/src/main/java/tv/own/owntv/mobile/OwnTVMobileApp.kt	image_cache
+1	url	app/src/main/java/tv/own/owntv/mobile/OwnTVMobileApp.kt	zdunas82/poterx-iptv-app-mobile
 1	protocol	app/src/main/java/tv/own/owntv/mobile/cast/CastPlaybackEngine.kt	CAST
 1	file-path	app/src/main/java/tv/own/owntv/mobile/cast/CastRequest.kt	.aac
 1	file-path	app/src/main/java/tv/own/owntv/mobile/cast/CastRequest.kt	.m3u8
@@ -45,12 +45,171 @@
 2	mime	app/src/main/java/tv/own/owntv/mobile/cast/CastRequest.kt	video/mp4
 1	mime	app/src/main/java/tv/own/owntv/mobile/cast/CastRequest.kt	video/webm
 1	mime	app/src/main/java/tv/own/owntv/mobile/cast/CastRequest.kt	video/x-matroska
+1	url	app/src/main/java/tv/own/owntv/mobile/di/ShellModule.kt	https://
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	owntv_playback
 1	technical	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	tv.own.owntv.mobile.AUDIO_ONLY
 1	technical	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	tv.own.owntv.mobile.SKIP_BACK
 1	technical	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	tv.own.owntv.mobile.SKIP_FORWARD
 1	protocol	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	tv.own.owntv.mobile.STOP
 1	protocol	app/src/main/java/tv/own/owntv/mobile/playback/PlaybackService.kt	tv.own.owntv.mobile.TOGGLE
+2	empty	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	\0
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	active
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	banned
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	connections
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	contact
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	device
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	disabled
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	expired
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	expiry
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	none
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	sign_out
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	status
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	test_channel
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedAccountPage.kt	user
+3	empty	app/src/main/java/tv/own/owntv/mobile/poterx/LockedOnboarding.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedOnboarding.kt	$appName · $login
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedOnboarding.kt	$profileName $it
+4	empty	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	\0
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	1
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	AES
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	AES/GCM/NoPadding
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	DEPRECATION
+2	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSource.kt	SHA-256
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	auto_${feed.id}
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	auto_${source.id}
+2	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	empty
+2	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	note
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	refresh_${feed.id}
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/LockedSourcesPage.kt	refresh_${source.id}
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxAccount.kt	$USER_AGENT_NAME/${BuildConfig.VERSION_NAME}
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxAccount.kt	PoterxMobile
+1	empty	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	\0
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	locale_v1
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	metadata_heal_v1
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	metadata_lang_v1
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	modules_v1
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	modules_v1_profile_
+1	locale	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	pl
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	poterx_defaults
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxDefaults.kt	tmdb_key_v1
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxExpiryNotice.kt	${KEY_SHOWN_DAY}_${source.id}
+2	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxExpiryNotice.kt	https://$POTERX_TELEGRAM_LINK
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxExpiryNotice.kt	poterx_expiry
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxExpiryNotice.kt	shown_day
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxExpiryNotice.kt	t.me/+mzemQ68cEhA2ZmQ0
+1	locale	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxLocales.kt	en
+1	locale	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxLocales.kt	pl
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	$1$MASK
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	$1***
+2	file-path	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	$relativePath$REPORT_NAME
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})
+1	file-path	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	${Environment.DIRECTORY_DOWNLOADS}/
+1	file-path	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	${Environment.DIRECTORY_DOWNLOADS}/$REPORT_NAME
+1	sql	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	${MediaStore.MediaColumns.DISPLAY_NAME}=? AND ${MediaStore.MediaColumns.RELATIVE_PATH}=?
+1	sql	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	${MediaStore.MediaColumns._ID} DESC
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?<![\\d.])(?:\\d{1,3}\\.){3}\\d{1,3}(?![\\d.]*\\d)(?::\\d{1,5})?
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?i)(?:[a-z][a-z0-9+.-]*://)?(?:api\\.)?github\\.com/(?:repos/)?
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?i)(?<![a-z0-9.-])$h(?::\\d+)?
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?i)([a-z][a-z0-9+.-]*://)[^/\\s<>'\\x22]+
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?i)(api_key=)[^&\\s]*
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	(?i)[a-z][a-z0-9+.-]*://$h(?::\\d+)?
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	--- last crash ---
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	--- live diagnostics (most recent) ---
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	Exported ${stamp.format(java.util.Date())}
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	Poterx TV playback report
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	[${stamp.format(java.util.Date(e.atMs))}] ${e.kind} · ${e.engine} · ${if (e.live) "live" else "vod"}
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	[^\\s"']*
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	live
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	no row
+2	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	no stream
+1	file-path	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	poterx-playback-report.txt
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	raw : $it
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	reason: $it
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	spec : $it
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	text/plain
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	vod
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	w
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	wt
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	yyyy-MM-dd HH:mm:ss
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxPrivacy.kt	•••
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	/player_api.php
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	/update.json
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	<
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	Content-Type
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	Expired
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	Location
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	PoterxReach
+2	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	User-Agent
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	[
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	diagnose: dns=${dns.first} tcp=$tcp http=$httpResult -> $verdict
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	html
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	https://
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	json
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	probe
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReachability.kt	{
+6	empty	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	\0
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	$1
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	(?i)\\b[a-z][a-z0-9+.-]*://\\S+
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	(?i)\\s+by\\s+@\\S+\\s+in\\s*$
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	(?i)github|full changelog|what's changed|new contributors|^\\*\\*changelog\\*\\*
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxReleaseNotes.kt	\\[([^\\]]*)]\\([^)]*\\)
+2	empty	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	${Build.MANUFACTURER} ${Build.MODEL}
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	%02x
+2	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	-
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	/api/v1/crash
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	/api/v1/ping
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	PoterxTelemetry
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	SHA-256
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	User-Agent
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	android
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	app
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	application/json; charset=utf-8
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	crash
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	crash_sent
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	device
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	device_id
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	https://
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	locale
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	mobile
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	model
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	ping_day
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	playbackErrors24h
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	poterx_telemetry
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	sdk
+1	log	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	telemetry skipped: ${it.javaClass.simpleName}
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	version
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxTelemetry.kt	versionCode
+1	empty	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	\0
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	%02x
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	/update-mobile-test.json
+1	url	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	/update-mobile.json
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	Accept
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	Cache-Control
+1	compiler	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	DEPRECATION
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	SHA-256
+2	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	User-Agent
+1	regex	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	[0-9a-f]{64}
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	apkUrl
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	application/json
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	checksum
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	https://
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	minVersionCode
+1	protocol	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	no-cache
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	notes
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	package
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	poterx-update
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	poterx-update.apk
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	poterx_updates
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	sha256
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	test_channel
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	truncated
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	tv.own.owntv.mobile.POTERX_INSTALL_STATUS
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	unparseable
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	updates
+1	technical	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	version
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	versionCode
+1	json	app/src/main/java/tv/own/owntv/mobile/poterx/PoterxUpdater.kt	versionName
 1	technical	app/src/main/java/tv/own/owntv/mobile/reminder/ReminderNotifier.kt	owntv_reminders
 1	empty	app/src/main/java/tv/own/owntv/mobile/reminder/ReminderPrompt.kt	\0
 1	empty	app/src/main/java/tv/own/owntv/mobile/ui/LocalizedContent.kt	\0
@@ -116,7 +275,7 @@
 1	log	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerLive.kt	liveDot
 1	log	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerLive.kt	liveDotAlpha
 1	empty	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	\0
-1	log	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	${res.getString(row.label.titleRes)}: ${row.value.displayText(res)}
+1	log	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	${res.getString(row.label.titleRes)}: ${tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(row.value.displayText(res))}
 1	mime	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	*/*
 1	log	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	?
 1	file-path	app/src/main/java/tv/own/owntv/mobile/ui/player/PlayerScreen.kt	subtitles
@@ -327,7 +486,7 @@
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	exoplayer
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	github.com/ahXN00/OwnTV
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	https://$GITHUB_REPO
-2	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	https://$TELEGRAM_LINK
+2	url	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	https://$telegramLink
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	jm
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	log-head
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsAppPage.kt	mpv
@@ -410,6 +569,7 @@
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	popup_size
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	reminder_lead
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	reminders
+1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_ACCOUNT
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_CONTENT_MENUS
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_CUSTOMIZE
 1	preference-key	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsGroupRows.kt	tab_DNS
@@ -448,6 +608,7 @@
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLayoutPages.kt	shd
 1	technical	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLayoutPages.kt	width
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	${group.route}/$slug
+1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	account
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	add
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	browsing
 1	uri	app/src/main/java/tv/own/owntv/mobile/ui/screens/settings/SettingsLeaf.kt	catchup-playlists

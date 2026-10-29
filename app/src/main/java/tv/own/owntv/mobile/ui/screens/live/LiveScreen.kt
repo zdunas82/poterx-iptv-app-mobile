@@ -77,6 +77,7 @@ import tv.own.owntv.core.epg.displayLogoUrl
 import tv.own.owntv.core.categorylock.SealedCategoryAction
 import tv.own.owntv.core.live.LiveKey
 import tv.own.owntv.mobile.R
+import tv.own.owntv.mobile.ui.components.indexOfLoaded
 import tv.own.owntv.mobile.ui.screens.home.groupedCountText
 import tv.own.owntv.mobile.ui.components.ChannelLogoImage
 import tv.own.owntv.mobile.ui.components.TwoPane
@@ -209,7 +210,7 @@ fun LiveScreen(
         val channel = vm.applyStartupSelection() ?: return@LaunchedEffect
         if (settings.livePreviewEnabled.first()) tuner.preview(channel.id)
         withTimeoutOrNull(STARTUP_ROW_WAIT_MS) {
-            snapshotFlow { channels.itemSnapshotList.items.indexOfFirst { it.id == channel.id } }.first { it >= 0 }
+            snapshotFlow { channels.itemSnapshotList.indexOfLoaded { it.id == channel.id } }.first { it >= 0 }
         }?.let { listState.scrollToItem(it) }
     }
 

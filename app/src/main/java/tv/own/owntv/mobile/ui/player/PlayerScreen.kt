@@ -800,8 +800,9 @@ fun PlayerScreen(
             onReport = {
                 val meta = activeEngine.currentMeta.value
                 scope.launch {
+                    // Poterx: the report may leave the phone; the panel's address stays out of it.
                     val snapshot = activeEngine.streamInfo().joinToString("\n") { row ->
-                        "  ${res.getString(row.label.titleRes)}: ${row.value.displayText(res)}"
+                        "  ${res.getString(row.label.titleRes)}: ${tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(row.value.displayText(res))}"
                     }
                     PlaybackErrorLog.report(
                         context = context,

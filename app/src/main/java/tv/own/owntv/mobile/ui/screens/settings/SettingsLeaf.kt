@@ -17,6 +17,8 @@ enum class SettingsLeaf(
     ADD_SOURCE(SettingsGroup.SOURCES, "add", R.string.content_add_source),
     EPG_SOURCES(SettingsGroup.SOURCES, "epg", R.string.settings_epg_sources),
     CATCHUP_SOURCES(SettingsGroup.SOURCES, "catchup-playlists", R.string.settings_catchup_timezone_per_playlist),
+    /** Poterx: the built-in account on a locked build (status, expiry, sign out); its row only shows there. */
+    ACCOUNT(SettingsGroup.SOURCES, "account", R.string.poterx_account_title),
 
     HIGHLIGHT(SettingsGroup.APPEARANCE, "highlight", R.string.settings_selection_highlight),
     GLASS_EFFECT(SettingsGroup.APPEARANCE, "glass", R.string.settings_glass_bg_title),

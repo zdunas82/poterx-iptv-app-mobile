@@ -38,6 +38,9 @@ class SetupViewModel(
     private val context: Context,
     private val companion: tv.own.owntv.core.companion.CompanionController,
     private val profiles: tv.own.owntv.core.profile.ProfileManager,
+    // Poterx: the panel's guide, registered and downloaded by the locked onboarding (syncGuideNow).
+    private val epgRepository: tv.own.owntv.core.repository.EpgRepository,
+    private val epgSourceStore: tv.own.owntv.core.epg.EpgSourceStore,
 ) : ViewModel() {
 
     // ---- Remote: another device fills the form in a browser; the phone pre-fills its own form. ----
@@ -165,7 +168,7 @@ class SetupViewModel(
      * the deliberate one, with the name and avatar the user chose. Both go through core's importer, so
      * whichever ran first is the profile the content lands on.
      */
-    fun createProfile(name: String, avatarId: Int, isKids: Boolean, pin: String?, picture: android.net.Uri?, onCreated: () -> Unit) {
+    fun createProfile(name: String, avatarId: Int, isKids: Boolean, pin: String?, picture: android.net.Uri?, onCreated: (Long) -> Unit) {
         appScope.launch {
             val id = importer.createProfile(name, avatarId, isKids, pin)
             // The picture waits for the profile: before it exists there is no id to store one under.
@@ -174,12 +177,30 @@ class SetupViewModel(
                     context.contentResolver.openInputStream(picture)?.use { profiles.setCustomAvatar(p, it) }
                 }
             }
-            onMain(onCreated)
+            // Poterx: the id goes back too — the locked onboarding removes the profile again on Cancel.
+            onMain { onCreated(id) }
         }
     }
 
     /** Playlists another profile already has, which this one can share rather than re-import. */
     suspend fun availableExistingSources(): List<SourceEntity> = importer.availableExistingSources()
+
+    /** Poterx: the profile the next import fills — one the locked onboarding made or took over itself. */
+    fun useProfile(id: Long) = importer.useProfile(id)
+
+    /**
+     * Poterx: download a playlist's own guide (Xtream `xmltv.php`) right away, no question asked.
+     * The same registration + sync the wizard's "Add a TV guide" leads to, but in [appScope] so
+     * leaving the onboarding screen for the shell never cancels it. Idempotent: an existing EPG
+     * source with the same URL is reused.
+     */
+    fun syncGuideNow(source: SourceEntity) {
+        appScope.launch {
+            runCatching { tv.own.owntv.mobile.poterx.runSemiAutoEpgSync(source, epgRepository, epgSourceStore) }
+            // The feed this registered refreshes itself like the first one does, not only from the next start.
+            runCatching { tv.own.owntv.mobile.poterx.PoterxDefaults.ensureGuideRefresh(epgSourceStore, settings) }
+        }
+    }
 
     /** Link the chosen existing playlists to this profile, then re-sync each one. */
     fun linkExisting(sourceIds: Set<Long>) = runImport { importer.linkExisting(sourceIds) }

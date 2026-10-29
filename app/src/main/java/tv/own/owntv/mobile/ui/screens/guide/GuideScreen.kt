@@ -75,6 +75,7 @@ import tv.own.owntv.core.live.ProviderTags
 import tv.own.owntv.core.model.RecordingStatus
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.R
+import tv.own.owntv.mobile.ui.components.indexOfLoaded
 import tv.own.owntv.mobile.ui.components.ChannelLogoImage
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
@@ -251,7 +252,7 @@ fun GuideScreen(
         val channel = startupSelection.consumeChannel(guide = true) ?: return@LaunchedEffect
         vm.select(live.categoryKeyOf(channel))
         withTimeoutOrNull(STARTUP_ROW_WAIT_MS) {
-            snapshotFlow { channels.itemSnapshotList.items.indexOfFirst { it.id == channel.id } }.first { it >= 0 }
+            snapshotFlow { channels.itemSnapshotList.indexOfLoaded { it.id == channel.id } }.first { it >= 0 }
         }?.let { listState.scrollToItem(it) }
         val now = System.currentTimeMillis()
         val onNow = vm.row(channel).firstOrNull { it.startMs <= now && now < it.stopMs } ?: return@LaunchedEffect
