@@ -78,6 +78,7 @@ jobs:
             app/build/reports/lint-results-*.html
             app/build/reports/lint-results-*.txt
           if-no-files-found: warn
+          retention-days: 7
 
   build:
     needs: check
@@ -265,6 +266,9 @@ jobs:
           name: ${{ env.APK_OUT }}
           path: dist/*
           if-no-files-found: error
+          # A dev APK is for a quick test; a tag's APK lives on the Release and the update server.
+          # 90 days of 37 MB per push filled the account's Actions storage.
+          retention-days: 14
 
       - name: Publish GitHub Release
         if: env.IS_TAG == 'true'
