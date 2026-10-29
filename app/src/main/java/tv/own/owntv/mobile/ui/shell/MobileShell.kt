@@ -150,6 +150,16 @@ fun MobileShell(
         // The wizard reports the profile it activated, and that is the unlock — the same handover the
         // television does. Without it the shell would have a valid active profile and no session for
         // it, which is the one state that shows the chooser.
+        // Poterx: a locked build has no wizard; its onboarding signs the built-in account in.
+        if (tv.own.owntv.mobile.poterx.LockedSource.enabled) {
+            tv.own.owntv.mobile.poterx.LockedOnboarding(
+                addingProfile = false,
+                onDone = { profileId -> profileId?.let(gateSession::unlock) },
+                onCancel = {},
+                modifier = modifier,
+            )
+            return
+        }
         SetupFlow(
             onDone = { profileId -> profileId?.let(gateSession::unlock) },
             modifier = modifier,
@@ -172,6 +182,25 @@ fun MobileShell(
             onEntered = { gateSession.unlock(it.id) },
             modifier = modifier,
             vm = profilesViewModel,
+            onAddLocked = if (tv.own.owntv.mobile.poterx.LockedSource.enabled) ({ gateSession.startAddingProfile() }) else null,
+        )
+        return
+    }
+    // Poterx: a profile added with its own login and password (a second channel list) — the sign-in
+    // flow instead of the app, as on the television. Playback stops first: the new list's import
+    // and a running stream would fight for the panel's connections.
+    if (gateSession.addingProfile) {
+        val liveTuner: LiveTuner = koinInject()
+        val filmTuner: VodTuner = koinInject()
+        LaunchedEffect(Unit) {
+            runCatching { liveTuner.stop() }
+            runCatching { filmTuner.stop() }
+        }
+        tv.own.owntv.mobile.poterx.LockedOnboarding(
+            addingProfile = true,
+            onDone = { profileId -> gateSession.finishAddingProfile(); profileId?.let(gateSession::unlock) },
+            onCancel = { gateSession.finishAddingProfile() },
+            modifier = modifier,
         )
         return
     }
@@ -191,6 +220,7 @@ fun MobileShell(
                 },
                 modifier = Modifier.fillMaxSize(),
                 vm = profilesViewModel,
+                onAddLocked = if (tv.own.owntv.mobile.poterx.LockedSource.enabled) ({ choosingProfile = false; gateSession.startAddingProfile() }) else null,
             )
         }
     }
@@ -365,9 +395,12 @@ fun MobileShell(
     // — "checking…" and "you are up to date" are answers to a question nobody asked, and on a phone
     // they would land on top of what the user opened the app to do. A failure is silent for the same
     // reason; Settings → App → Check for updates says it out loud, on request.
-    val updateManager: UpdateManager = koinInject()
+    // Poterx: the provider's own server when one is built in (AppUpdater), else core's GitHub Releases.
+    val updateManager: tv.own.owntv.mobile.poterx.AppUpdater = koinInject()
     val updateCheckOnStart by settings.updateCheckOnStart.collectAsStateWithLifecycle(initialValue = false)
     val updateState by updateManager.state.collectAsStateWithLifecycle()
+    // Poterx: the server no longer serves this version — the sheet offers nothing but the update.
+    val updateRequired by updateManager.required.collectAsStateWithLifecycle()
     var updateChecked by remember { mutableStateOf(false) }
     var updateSheetOpen by remember { mutableStateOf(false) }
     LaunchedEffect(updateCheckOnStart) {
@@ -381,7 +414,9 @@ fun MobileShell(
         if (updateState is UpdateManager.State.Available) updateSheetOpen = true
     }
     // Not over the player, and not over setup: both own the whole screen for a reason.
-    if (updateSheetOpen && !fullscreen) {
+    if (updateRequired && !fullscreen) {
+        UpdateSheet(onDismiss = {}, required = true)
+    } else if (updateSheetOpen && !fullscreen) {
         UpdateSheet(
             onDismiss = {
                 updateSheetOpen = false
@@ -390,6 +425,8 @@ fun MobileShell(
             },
         )
     }
+    // Poterx: "the subscription ends in N days", once a day, never over the player.
+    tv.own.owntv.mobile.poterx.PoterxExpiryNotice(canShow = !fullscreen && !updateRequired)
 
     // The header: the page names itself; a page pushed on top of another says where it came from
     // in the crumb, and that crumb is the way back. A tab, Home and More are places, not pages, so they

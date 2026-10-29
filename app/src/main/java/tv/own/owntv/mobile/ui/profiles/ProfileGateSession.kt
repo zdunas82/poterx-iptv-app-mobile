@@ -26,6 +26,18 @@ class ProfileGateSession : ViewModel() {
     }
 
     /**
+     * Poterx: a profile is being added through the sign-in flow (its own login and password, so a
+     * second channel list). The shell shows the locked onboarding instead of the app while this is
+     * set; the flow clears it when it finishes or is cancelled.
+     */
+    var addingProfile by mutableStateOf(false)
+        private set
+
+    fun startAddingProfile() { addingProfile = true }
+
+    fun finishAddingProfile() { addingProfile = false }
+
+    /**
      * A stale unlock can never authorise a different profile. Called as the active id arrives; a
      * null id is the flow not having emitted yet, which must not turn a rotation into a PIN prompt.
      */

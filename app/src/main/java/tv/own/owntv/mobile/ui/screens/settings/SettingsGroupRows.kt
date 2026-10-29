@@ -170,7 +170,12 @@ private fun sourcesSections(vm: SettingsViewModel): List<SettingSection> {
     return listOfNotNull(
         SettingSection(
             stringResource(R.string.settings_sources_title),
-            listOf(
+            listOfNotNull(
+                // Poterx: the built-in account first on a locked build; a stock build has no such row.
+                if (tv.own.owntv.mobile.poterx.LockedSource.enabled) pageItem(
+                    "tab_ACCOUNT", MobileIcons.Person, stringResource(R.string.poterx_account_title),
+                    stringResource(R.string.poterx_account_description), null, SettingsLeaf.ACCOUNT.route,
+                ) else null,
                 pageItem(
                     "tab_SOURCES", MobileIcons.Layers, stringResource(R.string.settings_playlists),
                     stringResource(R.string.settings_line_playlists_mobile),
@@ -592,7 +597,7 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
     return listOf(
         SettingSection(
             stringResource(R.string.settings_app_group),
-            listOf(
+            listOfNotNull(
                 pageItem(
                     "tab_SPORTS", MobileIcons.Sports, stringResource(R.string.sports_title), stringResource(R.string.sports_leagues),
                     null, SettingsLeaf.SPORTS.route,
@@ -601,7 +606,8 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
                     "tab_LANGUAGE", MobileIcons.Translate, stringResource(R.string.settings_language), stringResource(R.string.settings_language_description),
                     localeLabel(tag), SettingsLeaf.LANGUAGE.route,
                 ),
-                SettingItem(
+                // Poterx: a locked build ships one icon, the provider's; the colour picker would swap it for OwnTV's.
+                if (tv.own.owntv.mobile.poterx.LockedSource.enabled) null else SettingItem(
                     "app_icon", MobileIcons.Palette, stringResource(R.string.settings_app_icon), stringResource(R.string.settings_line_app_icon),
                     SettingValue.Opens(stringResource(appIcon.label)),
                     sheet = { dismiss -> AppIconSheet(chosen = appIcon, onPick = { vm.edit { setAppIcon(it) } }, onDismiss = dismiss) },

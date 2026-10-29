@@ -25,8 +25,9 @@ fun MoreLeafPage(
     when (leaf) {
         MoreLeaf.FAVORITES -> FavoritesScreen(onOpenChannel, onOpenItem)
         MoreLeaf.HISTORY -> WatchHistoryScreen(onOpenChannel, onOpenItem, onOpenPlayer)
-        MoreLeaf.BACKUP -> SettingsBackupPage()
-        MoreLeaf.LOCAL_SYNC -> SettingsLocalSyncPage()
+        // Poterx: both could copy the built-in account out of the app; a locked build shows a note instead.
+        MoreLeaf.BACKUP -> if (tv.own.owntv.mobile.poterx.LockedSource.enabled) tv.own.owntv.mobile.poterx.LockedInfoPage() else SettingsBackupPage()
+        MoreLeaf.LOCAL_SYNC -> if (tv.own.owntv.mobile.poterx.LockedSource.enabled) tv.own.owntv.mobile.poterx.LockedInfoPage() else SettingsLocalSyncPage()
         MoreLeaf.ERROR_LOG -> SettingsErrorLogPage()
         MoreLeaf.ABOUT -> AboutPage(onOpenLanguage)
     }

@@ -1,0 +1,16 @@
+# Poterx Mobile — konto wbudowane w aplikację (te same klucze co w Poterx TV) (skopiuj do poterx.properties; ten plik jest w .gitignore).
+# Wystarczy JEDNA z form:
+#   a) link do playlisty z panelu XUI.one / Xtream (dowolna z postaci poniżej)
+poterx.playlistUrl=http://TWOJ-HOST:80/playlist/UZYTKOWNIK/HASLO/m3u_plus
+#   b) albo osobne pola
+#poterx.server=http://TWOJ-HOST:80
+#poterx.username=UZYTKOWNIK
+#poterx.password=HASLO
+#poterx.preferHls=false
+#   c) SAM serwer — użytkownik wpisze w aplikacji tylko login i hasło (serwer pozostaje ukryty)
+#poterx.server=http://TWOJ-HOST:80
+#   Opcjonalnie (dowolna z form powyżej):
+#poterx.servicePin=1234            # PIN pytany przed wylogowaniem (puste = bez PIN-u)
+#poterx.contact=tel. 600 000 000   # kontakt do dostawcy pokazywany przy błędzie logowania i na ekranie Konto
+#poterx.tmdbKey=xxxxxxxx              # klucz API TMDB (v3) na plakaty i opisy filmów i seriali
+#poterx.updateUrl=https://app.example.com   # własny serwer aktualizacji (update-mobile.json); puste = GitHub Releases

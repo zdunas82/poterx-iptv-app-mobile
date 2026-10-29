@@ -365,7 +365,8 @@ private fun completedLine(
     is SyncResult.Failed -> res.getString(
         R.string.sync_status_failed,
         completed.sourceName,
-        classifySyncFailure(result.message, online).displayText(res),
+        // Poterx: a failure's text can quote the address it failed on; the panel's host is masked.
+        tv.own.owntv.mobile.poterx.PoterxPrivacy.hide(classifySyncFailure(result.message, online).displayText(res)),
     )
     SyncResult.Cancelled -> res.getString(R.string.sync_status_cancelled, completed.sourceName)
 }
