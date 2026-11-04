@@ -38,6 +38,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Core (tv.own.owntv:core, :player-core) is BUILT FROM SOURCE: Poterx's public fork of OwnTV_Core at
+# the commit pinned in OWNTV_CORE_REF (below), substituted for the Maven artifacts through
+# owntv.corePath (settings.gradle.kts) — the same fork and the same mechanism as the TV app. The mpv
+# engine (libmpv) still resolves from OwnTV's public Maven repository. Bump the SHA to take a fork
+# change; go back to the Maven pin (libs.versions.toml owntvCore) by dropping the "Patched OwnTV core"
+# steps once upstream ships the fork's changes.
+env:
+  OWNTV_CORE_REPO: zdunas82/OwnTV_Core
+  OWNTV_CORE_REF: ab1d61543f32fe8b3c61b4948a8dffa2e1747865
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -59,14 +69,24 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Patched OwnTV core (Poterx fork)
+        # Outside the workspace on purpose: tools/i18n scans core/ and player-core/ under the repo root.
+        run: |
+          d="$RUNNER_TEMP/owntv-core"
+          git init -q "$d"
+          git -C "$d" fetch -q --depth 1 "https://github.com/$OWNTV_CORE_REPO.git" "$OWNTV_CORE_REF"
+          git -C "$d" checkout -q FETCH_HEAD
+          echo "OWNTV_CORE_DIR=$d" >> "$GITHUB_ENV"
+          echo "OwnTV core: $OWNTV_CORE_REPO@$(git -C "$d" rev-parse --short HEAD)"
+
       - name: Unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew testStandardDebugUnitTest --stacktrace
+          ./gradlew -Powntv.corePath="$OWNTV_CORE_DIR" testStandardDebugUnitTest --stacktrace
 
       - name: Lint
         if: always()
-        run: ./gradlew lintStandardDebug --stacktrace
+        run: ./gradlew -Powntv.corePath="$OWNTV_CORE_DIR" lintStandardDebug --stacktrace
 
       - name: Upload test and lint reports
         if: always()
@@ -110,6 +130,16 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Patched OwnTV core (Poterx fork)
+        # Outside the workspace on purpose: tools/i18n scans core/ and player-core/ under the repo root.
+        run: |
+          d="$RUNNER_TEMP/owntv-core"
+          git init -q "$d"
+          git -C "$d" fetch -q --depth 1 "https://github.com/$OWNTV_CORE_REPO.git" "$OWNTV_CORE_REF"
+          git -C "$d" checkout -q FETCH_HEAD
+          echo "OWNTV_CORE_DIR=$d" >> "$GITHUB_ENV"
+          echo "OwnTV core: $OWNTV_CORE_REPO@$(git -C "$d" rev-parse --short HEAD)"
 
       - name: Compute version (from the git tag on releases)
         id: ver
@@ -223,7 +253,7 @@ jobs:
         run: |
           chmod +x ./gradlew
           # One flavor, the phones' (arm64-v8a + armeabi-v7a); the x86_64 emulator build is not published.
-          ./gradlew :app:assembleStandardRelease --stacktrace
+          ./gradlew -Powntv.corePath="$OWNTV_CORE_DIR" :app:assembleStandardRelease --stacktrace
           ARM_SRC=$(ls app/build/outputs/apk/standard/release/*.apk | head -n1)
           echo "Built: $ARM_SRC"
           echo "ARM_SRC=$ARM_SRC" >> "$GITHUB_ENV"

@@ -55,6 +55,7 @@ import coil3.compose.AsyncImage
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.koin.androidx.compose.koinViewModel
+import tv.own.owntv.core.content.VodFilter
 import tv.own.owntv.core.customize.CategoryRestorePlan
 import tv.own.owntv.core.live.LiveKey
 import tv.own.owntv.core.live.ProviderTags
@@ -89,7 +90,9 @@ import tv.own.owntv.mobile.ui.stage.StageSegmented
 import org.koin.compose.koinInject
 import tv.own.owntv.core.nav.MainSection
 import tv.own.owntv.core.nav.NavVisibility
+import tv.own.owntv.mobile.ui.stage.StageSettingRow
 import tv.own.owntv.mobile.ui.stage.StageSheetHeader
+import tv.own.owntv.mobile.ui.stage.StageStepper
 import tv.own.owntv.mobile.ui.stage.StageSizeBar
 import tv.own.owntv.mobile.ui.stage.StageTool
 import tv.own.owntv.mobile.ui.stage.stageAccent
@@ -134,6 +137,7 @@ fun LibraryScreen(
     val count by vm.count.collectAsStateWithLifecycle()
     val viewMode by vm.viewMode.collectAsStateWithLifecycle()
     val sort by vm.sortMode.collectAsStateWithLifecycle()
+    val filter by vm.filter.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
     val chosenColumns by vm.gridColumns.collectAsStateWithLifecycle()
     val favorites by vm.favoriteIds.collectAsStateWithLifecycle()
@@ -249,6 +253,15 @@ fun LibraryScreen(
                 on = sortOpen,
                 modifier = Modifier.widthIn(max = 150.dp),
             )
+            // The year filter (Poterx) lives in the same sheet; its tool shows the range while one is set.
+            StageTool(
+                onClick = { sortOpen = true },
+                icon = MobileIcons.CalendarMonth,
+                value = filter.takeIf { it.active }?.let { vodFilterLabel(it) },
+                on = filter.active,
+                contentDescription = stringResource(if (movies) R.string.poterx_filter_movies_title else R.string.poterx_filter_series_title),
+                modifier = Modifier.widthIn(max = 120.dp),
+            )
             val views = SettingsRepository.VodViewMode.entries
             StageSegmented(
                 options = views.map { stringResource(it.labelRes()) },
@@ -319,7 +332,9 @@ fun LibraryScreen(
             sort = sort,
             viewMode = viewMode,
             columns = columns,
+            filter = filter,
             onSort = vm::setSort,
+            onFilter = vm::setFilter,
             onViewMode = vm::setViewMode,
             onColumns = vm::setGridColumns,
             onDismiss = { sortOpen = false },
@@ -459,7 +474,9 @@ private fun VodSortSheet(
     sort: SettingsRepository.SortMode,
     viewMode: SettingsRepository.VodViewMode,
     columns: Int,
+    filter: VodFilter,
     onSort: (SettingsRepository.SortMode) -> Unit,
+    onFilter: (VodFilter) -> Unit,
     onViewMode: (SettingsRepository.VodViewMode) -> Unit,
     onColumns: (Int) -> Unit,
     onDismiss: () -> Unit,
@@ -472,6 +489,7 @@ private fun VodSortSheet(
             Triple(SettingsRepository.SortMode.ALPHA, MobileIcons.FormatListBulleted, null),
             Triple(SettingsRepository.SortMode.RATING, MobileIcons.StarBorder, R.string.content_sort_rating_hint),
             Triple(SettingsRepository.SortMode.DATE_ADDED, MobileIcons.Schedule, R.string.content_sort_date_added_hint),
+            Triple(SettingsRepository.SortMode.YEAR, MobileIcons.CalendarMonth, R.string.poterx_sort_year_hint),
         ).forEach { (mode, icon, hint) ->
             val current = mode == sort
             StageMenuItem(
@@ -483,6 +501,7 @@ private fun VodSortSheet(
                 checked = current,
             )
         }
+        VodYearFilter(tab, filter, onFilter)
         StageGroupLabel(stringResource(R.string.content_menu_group_view))
         val views = SettingsRepository.VodViewMode.entries
         StageChoiceRow(
@@ -498,6 +517,93 @@ private fun VodSortSheet(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
+    }
+}
+
+/** The oldest year the filter steps down to; the newest is next year (a provider lists titles early). */
+private const val FILTER_MIN_YEAR = 1900
+private fun filterMaxYear(): Int = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) + 1
+
+/** The filter as a short range: "2010–2019", "from 2020", "to 1989"; "Year" when off. */
+@Composable
+internal fun vodFilterLabel(filter: VodFilter): String {
+    val from = filter.yearFrom
+    val to = filter.yearTo
+    return when {
+        from != null && to != null -> if (from == to) from.toString() else stringResource(R.string.poterx_filter_range, from, to)
+        from != null -> stringResource(R.string.poterx_filter_from_only, from)
+        to != null -> stringResource(R.string.poterx_filter_to_only, to)
+        else -> stringResource(R.string.poterx_filter)
+    }
+}
+
+/** The decades as quick picks: this decade on, then three before it, then everything older. */
+private fun vodFilterPresets(): List<VodFilter> {
+    val decade = (filterMaxYear() - 1) / 10 * 10
+    return listOf(
+        VodFilter(yearFrom = decade),
+        VodFilter(yearFrom = decade - 10, yearTo = decade - 1),
+        VodFilter(yearFrom = decade - 20, yearTo = decade - 11),
+        VodFilter(yearFrom = decade - 30, yearTo = decade - 21),
+        VodFilter(yearTo = decade - 31),
+    )
+}
+
+/**
+ * The sort sheet's YEAR section (Poterx): the decades as a choice row (tap the chosen one again to
+ * clear), then From / To steppers — a tap on a row turns its bound on or off. Every change applies at
+ * once, so the list behind the sheet re-queries as the user steps.
+ */
+@Composable
+private fun VodYearFilter(tab: LibraryTab, filter: VodFilter, onFilter: (VodFilter) -> Unit) {
+    val max = filterMaxYear()
+    val any = stringResource(R.string.poterx_filter_any)
+    fun apply(from: Int?, to: Int?) {
+        var f = from?.coerceIn(FILTER_MIN_YEAR, max)
+        var t = to?.coerceIn(FILTER_MIN_YEAR, max)
+        // Keep the range well-formed as either bound steps past the other.
+        if (f != null && t != null && f > t) { if (from != filter.yearFrom) t = f else f = t }
+        onFilter(VodFilter(f, t))
+    }
+    StageGroupLabel(stringResource(if (tab == LibraryTab.MOVIES) R.string.poterx_filter_movies_title else R.string.poterx_filter_series_title))
+    // Six picks over two rows of three: one row would squeeze "2010–2019" past a phone's width.
+    val presets = listOf(VodFilter.NONE) + vodFilterPresets()
+    val labels = listOf(any) + presets.drop(1).map { vodFilterLabel(it) }
+    val chosen = if (!filter.active) 0 else presets.indexOf(filter)
+    presets.chunked(3).forEachIndexed { row, chunk ->
+        StageChoiceRow(
+            options = chunk.indices.map { labels[row * 3 + it] },
+            selected = chosen - row * 3,
+            onSelect = { onFilter(presets[row * 3 + it]) },
+        )
+    }
+    StageSettingRow(
+        title = stringResource(R.string.poterx_filter_year_from),
+        icon = MobileIcons.CalendarMonth,
+        minHeight = 48.dp,
+        onClick = { apply(if (filter.yearFrom == null) (filter.yearTo ?: max - 1) - 10 else null, filter.yearTo) },
+    ) {
+        StageStepper(
+            filter.yearFrom?.toString() ?: any,
+            onMinus = { apply((filter.yearFrom ?: (filter.yearTo ?: max - 1)) - 1, filter.yearTo) },
+            onPlus = { apply((filter.yearFrom ?: (filter.yearTo ?: max - 1)) + 1, filter.yearTo) },
+            minusEnabled = (filter.yearFrom ?: max) > FILTER_MIN_YEAR,
+            plusEnabled = (filter.yearFrom ?: FILTER_MIN_YEAR) < max,
+        )
+    }
+    StageSettingRow(
+        title = stringResource(R.string.poterx_filter_year_to),
+        icon = MobileIcons.CalendarMonth,
+        minHeight = 48.dp,
+        onClick = { apply(filter.yearFrom, if (filter.yearTo == null) max - 1 else null) },
+    ) {
+        StageStepper(
+            filter.yearTo?.toString() ?: any,
+            onMinus = { apply(filter.yearFrom, (filter.yearTo ?: (filter.yearFrom ?: max - 1)) - 1) },
+            onPlus = { apply(filter.yearFrom, (filter.yearTo ?: (filter.yearFrom ?: max - 1)) + 1) },
+            minusEnabled = (filter.yearTo ?: max) > FILTER_MIN_YEAR,
+            plusEnabled = (filter.yearTo ?: FILTER_MIN_YEAR) < max,
+        )
     }
 }
 
@@ -535,6 +641,7 @@ private fun SettingsRepository.SortMode.labelRes() = when (this) {
     SettingsRepository.SortMode.ALPHA -> R.string.settings_sort_alpha
     SettingsRepository.SortMode.RATING -> R.string.settings_sort_rating
     SettingsRepository.SortMode.DATE_ADDED -> R.string.settings_sort_date_added
+    SettingsRepository.SortMode.YEAR -> R.string.poterx_sort_year
 }
 
 private fun SettingsRepository.VodViewMode.labelRes() = when (this) {

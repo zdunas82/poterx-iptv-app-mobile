@@ -50,6 +50,20 @@
     <string name="poterx_sign_out_description">Usuwa listę kanałów i przewodnik z tego telewizora; potem może zalogować się inne konto</string>
     <string name="poterx_test_channel">Kanał testowy</string>
     <string name="poterx_test_channel_description">Aktualizacje przed klientami · pyta o PIN serwisowy</string>
+    <!-- Poterx: filtr roku i sortowanie wg roku w Filmach/Serialach. -->
+    <string name="poterx_sort_year">Rok</string>
+    <string name="poterx_sort_year_hint">Najnowsze najpierw</string>
+    <string name="poterx_filter">Rok</string>
+    <string name="poterx_filter_movies_title">Filtruj filmy wg roku</string>
+    <string name="poterx_filter_series_title">Filtruj seriale wg roku</string>
+    <string name="poterx_filter_hint">Dotyczy każdej kategorii w tej sekcji. Tytuły bez roku są pomijane.</string>
+    <string name="poterx_filter_year_from">Od</string>
+    <string name="poterx_filter_year_to">Do</string>
+    <string name="poterx_filter_any">Dowolny</string>
+    <string name="poterx_filter_clear">Wyczyść filtr</string>
+    <string name="poterx_filter_range">%1$d–%2$d</string>
+    <string name="poterx_filter_from_only">od %1$d</string>
+    <string name="poterx_filter_to_only">do %1$d</string>
     <string name="poterx_update_required_title">Wymagana aktualizacja</string>
     <string name="poterx_sign_out_body">Lista kanałów, przewodnik i profile na tym telewizorze zostaną usunięte. Do ponownego zalogowania potrzebny będzie login i hasło.</string>
     <string name="poterx_service_pin">Podaj PIN serwisowy</string>

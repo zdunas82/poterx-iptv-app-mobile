@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import tv.own.owntv.core.content.AdultCategoryClassifier
+import tv.own.owntv.core.content.VodFilter
 import tv.own.owntv.core.content.movieCountFlow
 import tv.own.owntv.core.content.moviePagingSource
 import tv.own.owntv.core.content.seriesCountFlow
@@ -288,15 +289,23 @@ class LibraryViewModel(
         }
     }
 
+    /** The year filter (Poterx): session-only like the search, and shared by both tabs. */
+    private val _filter = MutableStateFlow(VodFilter.NONE)
+    val filter: StateFlow<VodFilter> = _filter
+
+    fun setFilter(filter: VodFilter) {
+        _filter.value = filter
+    }
+
     /** How many items the current selection holds — the one whole-list question the screen asks. */
-    val count: StateFlow<Int> = combine(mediaType, selected, ctx, hiddenCategoryIds, ::Counted)
-        .flatMapLatest { (type, key, c, hidden) ->
+    val count: StateFlow<Int> = combine(mediaType, selected, ctx, hiddenCategoryIds, _filter, ::Counted)
+        .flatMapLatest { (type, key, c, hidden, filter) ->
             when {
                 c.profileId < 0 -> flowOf(0)
                 type == MediaType.MOVIE ->
-                    movieCountFlow(key, c.profileId, c.sourceIdsFor(type), hidden, movieDao, customCategoryDao)
+                    movieCountFlow(key, c.profileId, c.sourceIdsFor(type), hidden, movieDao, customCategoryDao, filter)
                 else ->
-                    seriesCountFlow(key, c.profileId, c.sourceIdsFor(type), hidden, seriesDao, customCategoryDao)
+                    seriesCountFlow(key, c.profileId, c.sourceIdsFor(type), hidden, seriesDao, customCategoryDao, filter)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -306,6 +315,7 @@ class LibraryViewModel(
         val key: LiveKey,
         val ctx: ActiveProfileSources,
         val hidden: Set<Long>,
+        val filter: VodFilter,
     )
 
     private data class Args(
@@ -315,6 +325,7 @@ class LibraryViewModel(
         val hidden: Set<Long>,
         val query: String = "",
         val sort: SettingsRepository.SortMode = SettingsRepository.SortMode.PLAYLIST,
+        val filter: VodFilter = VodFilter.NONE,
     )
 
     private val _query = MutableStateFlow("")
@@ -336,11 +347,12 @@ class LibraryViewModel(
             .combine(orderedContexts) { args, _ -> args }
             .combine(_query.debounce(SEARCH_DEBOUNCE_MS)) { args, q -> args.copy(query = q.trim()) }
             .combine(sort) { args, s -> args.copy(sort = s) }
+            .combine(_filter) { args, f -> args.copy(filter = f) }
 
     /** The films of the current selection. Collected only while the Movies tab is on screen. */
     val movies: Flow<PagingData<VodItem>> =
         args(_selectedMovies, settings.sortMovies)
-            .flatMapLatest { (key, c, cust, hidden, query, sort) ->
+            .flatMapLatest { (key, c, cust, hidden, query, sort, filter) ->
                 if (c.profileId < 0) {
                     flowOf(PagingData.empty())
                 } else {
@@ -355,6 +367,7 @@ class LibraryViewModel(
                             customCategoryDao = customCategoryDao,
                             contextKey = { folderContextKeys.value[it] },
                             hasManualOrder = { it in orderedContexts.value },
+                            filter = filter,
                         )
                     }.flow.map { paging ->
                         paging.customized(key, cust, hidden, { CustomizeKeys.movie(it) }, { it.categoryId })
@@ -367,7 +380,7 @@ class LibraryViewModel(
     /** [movies] for shows. */
     val series: Flow<PagingData<VodItem>> =
         args(_selectedSeries, settings.sortSeries)
-            .flatMapLatest { (key, c, cust, hidden, query, sort) ->
+            .flatMapLatest { (key, c, cust, hidden, query, sort, filter) ->
                 if (c.profileId < 0) {
                     flowOf(PagingData.empty())
                 } else {
@@ -382,6 +395,7 @@ class LibraryViewModel(
                             customCategoryDao = customCategoryDao,
                             contextKey = { folderContextKeys.value[it] },
                             hasManualOrder = { it in orderedContexts.value },
+                            filter = filter,
                         )
                     }.flow.map { paging ->
                         paging.customized(key, cust, hidden, { CustomizeKeys.series(it) }, { it.categoryId })

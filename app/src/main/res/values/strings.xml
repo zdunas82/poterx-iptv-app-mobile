@@ -50,6 +50,20 @@
     <string name="poterx_sign_out_description">Removes the channel list and guide from this television; another account can then sign in</string>
     <string name="poterx_test_channel">Test channel</string>
     <string name="poterx_test_channel_description">Receive updates before customers do · asks for the service PIN</string>
+    <!-- Poterx: the Movies/Series year filter and the year order. -->
+    <string name="poterx_sort_year">Year</string>
+    <string name="poterx_sort_year_hint">Newest first</string>
+    <string name="poterx_filter">Year</string>
+    <string name="poterx_filter_movies_title">Filter movies by year</string>
+    <string name="poterx_filter_series_title">Filter series by year</string>
+    <string name="poterx_filter_hint">Applies to every category in this section. Titles without a year are left out.</string>
+    <string name="poterx_filter_year_from">From</string>
+    <string name="poterx_filter_year_to">To</string>
+    <string name="poterx_filter_any">Any</string>
+    <string name="poterx_filter_clear">Clear filter</string>
+    <string name="poterx_filter_range">%1$d–%2$d</string>
+    <string name="poterx_filter_from_only">from %1$d</string>
+    <string name="poterx_filter_to_only">to %1$d</string>
     <string name="poterx_update_required_title">Update required</string>
     <string name="poterx_sign_out_body">The channel list, guide and profiles on this television will be removed. You will need your username and password to sign in again.</string>
     <string name="poterx_service_pin">Enter the service PIN</string>
