@@ -9,6 +9,8 @@ import androidx.paging.cachedIn
 import androidx.paging.filter
 import androidx.paging.map
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -461,11 +463,44 @@ class LiveViewModel(
         if (missing.isEmpty()) return
         viewModelScope.launch {
             val found = epgReader.nowProgrammesFor(missing, custom.value, epgOffset.value)
-            if (found.isEmpty()) return@launch
             // Capped like the guide's rowCache: scrolled-past channels are forgotten, and a
             // revisit simply re-reads them through the `missing` check above.
-            _nowPlaying.value = (_nowPlaying.value + found).toList()
-                .takeLast(MAX_NOW_PLAYING).toMap()
+            if (found.isNotEmpty()) publishNowPlaying(found)
+            // Poterx: the rows the stored guide could not answer are asked from the provider.
+            fillFromProvider(missing.filter { it.id !in found })
+        }
+    }
+
+    private fun publishNowPlaying(found: Map<Long, XtEpgEntry>) {
+        _nowPlaying.value = (_nowPlaying.value + found).toList().takeLast(MAX_NOW_PLAYING).toMap()
+    }
+
+    /**
+     * Poterx: a channel the panel's xmltv feed does not cover (the Polsat Sport channels on this
+     * panel) has no stored guide, and core never goes to the network for a list. On the television
+     * the preview pane fetched the focused channel's programme from the provider's short-EPG API,
+     * so its row filled only once focused; a phone has no focus, so such rows stayed blank. The
+     * visible rows the stored guide answered with nothing are fetched the way the preview does it —
+     * one channel per request, a few at once, at most [PROVIDER_ASK_MAX] per pass and never twice
+     * within [PROVIDER_ASK_TTL_MS]; core caches the answer for five minutes.
+     */
+    private val providerAsked = java.util.concurrent.ConcurrentHashMap<Long, Long>()
+    private var providerFillJob: kotlinx.coroutines.Job? = null
+
+    private fun fillFromProvider(rows: List<ChannelEntity>) {
+        val now = System.currentTimeMillis()
+        val due = rows.filter { (providerAsked[it.id] ?: 0L) + PROVIDER_ASK_TTL_MS < now }.take(PROVIDER_ASK_MAX)
+        if (due.isEmpty() || providerFillJob?.isActive == true) return
+        providerFillJob = viewModelScope.launch {
+            for (chunk in due.chunked(PROVIDER_ASK_PARALLEL)) {
+                val answers = chunk.map { ch ->
+                    async { ch.id to runCatching { epgReader.nowNext(ch, custom.value, epgOffset.value) }.getOrNull()?.now }
+                }.awaitAll()
+                val at = System.currentTimeMillis()
+                answers.forEach { (id, _) -> providerAsked[id] = at }
+                val found = answers.mapNotNull { (id, entry) -> entry?.let { id to it } }.toMap()
+                if (found.isNotEmpty()) publishNowPlaying(found)
+            }
         }
     }
 
@@ -667,5 +702,9 @@ class LiveViewModel(
         const val SEARCH_DEBOUNCE_MS = 250L
         // "What's on now", one short string per answered channel. Capped — see loadNowPlaying.
         const val MAX_NOW_PLAYING = 500
+        /** Provider short-EPG fill of visible rows: at most this many per pass, this many at once, re-asked after this long. */
+        private const val PROVIDER_ASK_MAX = 16
+        private const val PROVIDER_ASK_PARALLEL = 4
+        private const val PROVIDER_ASK_TTL_MS = 5 * 60_000L
     }
 }
