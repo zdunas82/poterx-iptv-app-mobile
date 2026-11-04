@@ -195,6 +195,15 @@ fun LibraryScreen(
         listState.scrollToItem(0)
         tappedItem = null
     }
+    // A new order or filter starts the list at its top as well: the old position could sit past the end
+    // of a list the year filter has just shortened several times over.
+    var shownOrder by remember { mutableStateOf(sort to filter) }
+    LaunchedEffect(sort, filter) {
+        if (shownOrder == (sort to filter)) return@LaunchedEffect
+        shownOrder = sort to filter
+        gridState.scrollToItem(0)
+        listState.scrollToItem(0)
+    }
 
     // The header's crumb: "‹ Disney+ Kids Movies · 136 titles", a tap opens the categories.
     val categoryLabel = categories.firstOrNull { it.key == selected }?.label(tab).orEmpty()
