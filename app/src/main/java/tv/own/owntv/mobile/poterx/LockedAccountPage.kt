@@ -52,6 +52,12 @@ fun LockedAccountPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koi
     val telemetry = koinInject<PoterxTelemetry>()
     val contact = LockedSource.account?.contact.orEmpty()
     val servicePin = LockedSource.account?.servicePin.orEmpty()
+    // Signing out is the customer's own act: it asks for the PIN of the profile in use when one is set
+    // (Settings › Profiles), never for the provider's service PIN — that one guards the test channel only.
+    val profilesVm: tv.own.owntv.mobile.ui.profiles.ProfilesViewModel = koinViewModel()
+    val activeProfile by androidx.compose.runtime.produceState<tv.own.owntv.core.database.entity.ProfileEntity?>(null) {
+        settings.activeProfileId.collect { id -> value = if (id < 0L) null else runCatching { profileDao.getById(id) }.getOrNull() }
+    }
     var confirmSignOut by remember { mutableStateOf(false) }
     var askPin by remember { mutableStateOf(false) }
     var pinWrong by remember { mutableStateOf(false) }
@@ -185,16 +191,20 @@ fun LockedAccountPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koi
             danger = true,
             onConfirm = {
                 confirmSignOut = false
-                if (servicePin.isNotBlank()) { pinWrong = false; askPin = true } else signOut()
+                if (activeProfile?.pinHash != null) { pinWrong = false; askPin = true } else signOut()
             },
             onDismiss = { confirmSignOut = false },
         )
     }
-    if (askPin) {
-        ServicePinPrompt(
-            wrong = pinWrong,
-            onSubmit = { pin -> if (pin == servicePin) { askPin = false; signOut() } else pinWrong = true },
+    val lockedProfile = activeProfile
+    if (askPin && lockedProfile != null) {
+        TextPromptDialog(
+            title = if (pinWrong) stringResource(R.string.profiles_wrong_pin) else stringResource(R.string.profiles_enter_pin, lockedProfile.name),
+            initial = "",
             onDismiss = { askPin = false },
+            onConfirm = { pin -> if (profilesVm.verifyPin(lockedProfile, pin)) { askPin = false; signOut() } else pinWrong = true },
+            allowBlank = false,
+            confirmLabel = stringResource(R.string.common_ok),
         )
     }
     if (askTestPin && updater != null) {

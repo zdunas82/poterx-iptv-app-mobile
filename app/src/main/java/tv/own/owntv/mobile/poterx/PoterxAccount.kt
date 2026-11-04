@@ -66,6 +66,7 @@ object PoterxAccount {
         epgStore.getAll().forEach { runCatching { epgStore.remove(it.id) } }
         runCatching { profileDao.deleteAll() }
         settings.setActiveProfile(-1L)
+        PoterxAccountStatus.clear()
     }
 
     /**

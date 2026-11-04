@@ -16,7 +16,7 @@
     <string name="poterx_login_wrong">Wrong username or password. Check the letter case and try again.</string>
     <string name="poterx_login_wrong_twice">If the details are certainly right, your internet provider may be blocking the TV server: try mobile data or a VPN app.</string>
     <string name="poterx_login_expired">Your subscription has run out. Contact your provider to renew it.</string>
-    <string name="poterx_login_offline">No internet connection. Check the television\u2019s network.</string>
+    <string name="poterx_login_offline">No internet connection. Check the phone\u2019s network.</string>
     <string name="poterx_login_panel_down">The television server is not answering right now. Try again in a moment.</string>
     <string name="poterx_blocked_title">Your internet provider blocks the connection to the television</string>
     <string name="poterx_blocked_dns">Your internet provider\u2019s network cannot find the TV server (a DNS block). Mobile data or a VPN app gets around it.</string>
@@ -29,7 +29,7 @@
     <string name="poterx_refresh_auto_description">How often the channel list is downloaded again by itself.</string>
     <string name="poterx_account_title">Account</string>
     <string name="poterx_account_description">Who is signed in, subscription status, sign out</string>
-    <string name="poterx_account_user_description">The account this television is signed in with</string>
+    <string name="poterx_account_user_description">The account this phone is signed in with</string>
     <string name="poterx_account_status">Status</string>
     <string name="poterx_account_status_description">As reported by your provider · OK checks again</string>
     <string name="poterx_account_checking">Checking…</string>
@@ -47,7 +47,7 @@
     <string name="poterx_account_connections_description">Streams in use now and the most allowed at once</string>
     <string name="poterx_account_connections_of">%1$d of %2$d</string>
     <string name="poterx_sign_out">Sign out</string>
-    <string name="poterx_sign_out_description">Removes the channel list and guide from this television; another account can then sign in</string>
+    <string name="poterx_sign_out_description">Removes the channel list and guide from this phone; another account can then sign in. A PIN set on your profile (Settings › Profiles) is asked first</string>
     <string name="poterx_test_channel">Test channel</string>
     <string name="poterx_test_channel_description">Receive updates before customers do · asks for the service PIN</string>
     <!-- Poterx: the Movies/Series year filter and the year order. -->
@@ -64,8 +64,11 @@
     <string name="poterx_filter_range">%1$d–%2$d</string>
     <string name="poterx_filter_from_only">from %1$d</string>
     <string name="poterx_filter_to_only">to %1$d</string>
+    <!-- Poterx: the account line in the chrome (the TV's clock block, the phone's Home header). -->
+    <string name="poterx_status_valid_until">Account until %1$s</string>
+    <string name="poterx_status_expired">Account expired</string>
     <string name="poterx_update_required_title">Update required</string>
-    <string name="poterx_sign_out_body">The channel list, guide and profiles on this television will be removed. You will need your username and password to sign in again.</string>
+    <string name="poterx_sign_out_body">The channel list, guide and profiles on this phone will be removed. You will need your username and password to sign in again.</string>
     <string name="poterx_service_pin">Enter the service PIN</string>
     <string name="poterx_contact_title">Your provider</string>
     <string name="poterx_device_id">Device ID</string>

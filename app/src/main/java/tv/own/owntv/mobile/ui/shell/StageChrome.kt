@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
@@ -438,6 +439,20 @@ fun StagePageHeader(
                 }
                 if (heading != null) {
                     HomeHeadingText(heading)
+                } else if (title == null && backLabel == null && tv.own.owntv.mobile.poterx.LockedSource.enabled) {
+                    // Poterx: Home's header has no title, so the line's expiry takes that place ("Account until
+                    // 12 Dec 2026"), in the accent during the last week and once it has passed.
+                    val expiry by tv.own.owntv.mobile.poterx.PoterxAccountStatus.expiryMs.collectAsState()
+                    expiry?.let { ms ->
+                        val now = System.currentTimeMillis()
+                        val soon = ms <= now || (ms - now) / (24L * 60 * 60 * 1000) < tv.own.owntv.mobile.poterx.POTERX_EXPIRY_WARN_DAYS
+                        val date = remember(ms) { java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(ms)) }
+                        Text(
+                            if (ms <= now) stringResource(R.string.poterx_status_expired) else stringResource(R.string.poterx_status_valid_until, date),
+                            style = stageText(13f, 600), color = if (soon) stageAccent.accent else palette.muted,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
                 } else if (title != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         BasicText(

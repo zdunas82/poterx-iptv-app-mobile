@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -78,18 +79,20 @@ fun PoterxExpiryNotice(canShow: Boolean) {
     val settings = koinInject<SettingsRepository>()
     val xtream = koinInject<XtreamClient>()
     var notice by remember { mutableStateOf<ExpiryNotice?>(null) }
-    LaunchedEffect(Unit) {
+    // Keyed on the profile: a sign-in after a sign-out, or a switch to a profile with its own list, asks again.
+    val profileId by settings.activeProfileId.collectAsStateWithLifecycle(initialValue = -1L)
+    LaunchedEffect(profileId) {
+        if (profileId < 0L) return@LaunchedEffect
         delay(EXPIRY_CHECK_DELAY_MS)
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val today = System.currentTimeMillis() / DAY_MS
         // The profile in use: a second list has its own subscription, and its own once-a-day notice.
         val source = withContext(Dispatchers.IO) { PoterxAccount.activeXtreamSource(sourceDao, settings) }
             ?: return@LaunchedEffect
+        // Always asked, so the account line in the chrome has its date even on a day the card was shown.
+        val found = PoterxAccountStatus.refresh(sourceDao, settings, xtream) ?: return@LaunchedEffect
         val shownKey = "${KEY_SHOWN_DAY}_${source.id}"
         if (prefs.getLong(shownKey, -1L) == today) return@LaunchedEffect
-        val found = withContext(Dispatchers.IO) {
-            runCatching { xtream.accountExpiryMs(source) }.getOrNull()
-        } ?: return@LaunchedEffect
         val remaining = found - System.currentTimeMillis()
         val daysLeft = if (remaining <= 0L) 0 else ceil(remaining / DAY_MS.toDouble()).toInt()
         if (daysLeft > POTERX_EXPIRY_WARN_DAYS) return@LaunchedEffect
