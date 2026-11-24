@@ -15,10 +15,28 @@ import tv.own.owntv.core.settings.SettingsRepository
 /** Who is watching: the list, the one in use, and the four things that can be done to a profile. */
 class ProfilesViewModel(
     private val profileDao: ProfileDao,
-    settings: SettingsRepository,
+    private val settings: SettingsRepository,
     private val manager: ProfileManager,
     private val context: android.content.Context,
+    private val protection: tv.own.owntv.core.profile.ProfileProtection,
 ) : ViewModel() {
+
+    /**
+     * Whether changing [profile] from the profile in use ([activeId]) needs one of its PINs first: it
+     * has a profile lock or a Settings lock, and it is not the one in use.
+     */
+    suspend fun changeNeedsPin(profile: ProfileEntity, activeId: Long): Boolean =
+        profile.id != activeId && protection.isProtected(profile)
+
+    /** A protected profile's profile PIN or Settings PIN. */
+    suspend fun verifyProtected(profile: ProfileEntity, pin: String) = protection.verify(profile, pin)
+
+    /** Whether [profileId] may download (the profile editor's Allow downloads). */
+    fun downloadsAllowed(profileId: Long): kotlinx.coroutines.flow.Flow<Boolean> = settings.downloadsAllowed(profileId)
+
+    fun setDownloadsAllowed(profileId: Long, allowed: Boolean) {
+        viewModelScope.launch { settings.setDownloadsAllowed(profileId, allowed) }
+    }
 
     /**
      * Null until Room has answered, never an empty list standing in for "not loaded yet". The gate

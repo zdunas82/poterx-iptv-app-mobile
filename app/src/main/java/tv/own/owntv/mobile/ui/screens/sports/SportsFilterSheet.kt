@@ -80,6 +80,10 @@ fun SportsFilterSheet(state: MatchPageState, onFilter: (WatchFilter) -> Unit, on
                 onClick = { onFilter(f.copy(onlyConfirmed = !f.onlyConfirmed)) }, minHeight = 48.dp, modifier = Modifier.padding(top = 8.dp),
             ) { StageSwitch(f.onlyConfirmed) }
             StageSettingRow(
+                title = stringResource(R.string.sports_show_likely), subtitle = stringResource(R.string.sports_show_likely_description),
+                onClick = { onFilter(f.copy(showLikely = !f.showLikely)) }, minHeight = 48.dp,
+            ) { StageSwitch(f.showLikely) }
+            StageSettingRow(
                 title = stringResource(R.string.sports_strict_filter), subtitle = stringResource(R.string.sports_strict_filter_description),
                 onClick = { onFilter(f.copy(strict = !f.strict)) }, minHeight = 48.dp,
             ) { StageSwitch(f.strict) }

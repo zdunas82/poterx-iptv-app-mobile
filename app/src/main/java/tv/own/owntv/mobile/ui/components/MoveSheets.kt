@@ -53,10 +53,12 @@ fun ReorderSheet(
     title: String,
     openAt: Long,
     load: suspend () -> List<ReorderItem>,
-    onSave: (List<Long>) -> Unit,
+    /** The ids in their new order, and the ones the user moved (only those keep a place). */
+    onSave: (ids: List<Long>, moved: Set<Long>) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val items = remember { mutableStateListOf<ReorderItem>() }
+    val moved = remember { mutableSetOf<Long>() }
     var loaded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val palette = LocalStagePalette.current
@@ -76,14 +78,14 @@ fun ReorderSheet(
                 StageRow(current = item.id == openAt, height = 52.dp, role = null) {
                     Text(item.label, style = stageText(14.5f, 600), color = palette.item, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     StageButton(
-                        onClick = { if (index > 0) items.add(index - 1, items.removeAt(index)) },
+                        onClick = { if (index > 0) { moved += item.id; items.add(index - 1, items.removeAt(index)) } },
                         icon = MobileIcons.KeyboardArrowUp,
                         small = true,
                         enabled = index > 0,
                         modifier = Modifier.semanticsLabel(stringResource(R.string.settings_row_menu_move_up)),
                     )
                     StageButton(
-                        onClick = { if (index < items.lastIndex) items.add(index + 1, items.removeAt(index)) },
+                        onClick = { if (index < items.lastIndex) { moved += item.id; items.add(index + 1, items.removeAt(index)) } },
                         icon = MobileIcons.KeyboardArrowDown,
                         small = true,
                         enabled = index < items.lastIndex,
@@ -95,7 +97,7 @@ fun ReorderSheet(
         StageConfirmItems(
             confirm = stringResource(R.string.common_save),
             confirmEnabled = loaded && items.isNotEmpty(),
-            onConfirm = { onSave(items.map { it.id }) },
+            onConfirm = { onSave(items.map { it.id }, moved.toSet()) },
             onDismiss = onDismiss,
         )
     }

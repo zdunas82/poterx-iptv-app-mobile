@@ -1,5 +1,6 @@
 package tv.own.owntv.mobile.ui.screens.recordings
 
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import tv.own.owntv.core.storage.missingFiles
 import androidx.lifecycle.ViewModel
@@ -13,9 +14,18 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import tv.own.owntv.core.categorylock.anyLockSealed
+import tv.own.owntv.core.categorylock.sealedCategoryIds
+import tv.own.owntv.core.categorylock.withoutSealed
+import tv.own.owntv.core.customize.CustomizationStore
+import tv.own.owntv.core.customize.ItemCategory
+import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.database.entity.RecordingEntity
+import tv.own.owntv.core.database.entity.RecordingRuleEntity
+import tv.own.owntv.core.model.MediaType
 import tv.own.owntv.core.model.RecordingStatus
 import tv.own.owntv.core.recording.RecordingManager
+import tv.own.owntv.core.recording.SeriesRecording
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.core.storage.MediaTarget
 import tv.own.owntv.core.storage.StorageAccess
@@ -23,7 +33,9 @@ import tv.own.owntv.mobile.ui.screens.library.VodTuner
 
 /**
  * The phone's view of the same `recordings` table the television reads. Core does all of it; this
- * observes and offers the four things a recording can be told.
+ * observes and offers the four things a recording can be told. A locked category keeps what it holds
+ * behind the PIN, so a recording of one of its channels stays out of the list, and will not play,
+ * until the PIN opens the category.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RecordingsViewModel(
@@ -31,6 +43,8 @@ class RecordingsViewModel(
     private val settings: SettingsRepository,
     private val recordings: RecordingManager,
     private val vodTuner: VodTuner,
+    private val channelDao: ChannelDao,
+    private val customize: CustomizationStore,
 ) : ViewModel() {
 
     /** Hand the user the location itself: no file manager browses the app's own storage since Android 11. */
@@ -66,8 +80,32 @@ class RecordingsViewModel(
     }
 
     val rows: StateFlow<List<RecordingEntity>> = settings.activeProfileId
-        .flatMapLatest { pid -> if (pid < 0) flowOf(emptyList()) else recordings.observe(pid) }
+        .flatMapLatest { pid ->
+            if (pid < 0) flowOf(emptyList())
+            else recordings.observe(pid).withoutSealed(
+                customize.sealedCategoryIds(pid, MediaType.LIVE),
+                customize.anyLockSealed(pid),
+                ::channelCategory,
+            )
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The programmes set to record every showing, kept out of view like recordings while their channel is locked. */
+    val seriesRules: StateFlow<List<SeriesRecording>> = settings.activeProfileId
+        .flatMapLatest { pid ->
+            if (pid < 0) flowOf(emptyList())
+            else recordings.observeSeriesRecordings(pid).withoutSealed(
+                customize.sealedCategoryIds(pid, MediaType.LIVE),
+                customize.anyLockSealed(pid),
+                ::channelCategory,
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Stops recording every showing, and cancels the showings it had scheduled; what was recorded stays. */
+    fun stopSeries(rule: RecordingRuleEntity) {
+        viewModelScope.launch { recordings.removeSeriesRule(rule) }
+    }
 
     /** Paths of finished items whose file is gone (drive formatted, swapped or unplugged). */
     val missingFiles: StateFlow<Set<String>> = rows
@@ -87,7 +125,9 @@ class RecordingsViewModel(
         if (recording.status != RecordingStatus.COMPLETED) return
         val path = recording.filePath ?: return
         viewModelScope.launch {
-            _playing.value = vodTuner.playRecording(path, recording.title, recording.channelIconUrl)
+            val category = channelCategory(recording.channelId)
+            if (customize.sealsItem(settings.activeProfileId.first(), category)) return@launch
+            _playing.value = vodTuner.playRecording(path, recording.title, recording.channelIconUrl, (category as? ItemCategory.Found)?.id)
         }
     }
 
@@ -98,6 +138,10 @@ class RecordingsViewModel(
     fun stop(recording: RecordingEntity) = recordings.stop(recording)
     fun cancel(recording: RecordingEntity) = recordings.cancel(recording)
     fun delete(recording: RecordingEntity) = recordings.delete(recording)
+
+    /** The category of a recording's channel; unresolved once a re-sync gave the channel a new id. */
+    private suspend fun channelCategory(channelId: Long): ItemCategory =
+        channelDao.getById(channelId)?.let { ItemCategory.Found(it.categoryId) } ?: ItemCategory.Unresolved
 
     fun retry(recording: RecordingEntity) {
         viewModelScope.launch { recordings.schedule(recording) }

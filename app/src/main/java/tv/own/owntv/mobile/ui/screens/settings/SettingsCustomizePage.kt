@@ -13,7 +13,6 @@ import org.koin.androidx.compose.koinViewModel
 import tv.own.owntv.mobile.ui.screens.settings.customize.CustomizeCategoriesPane
 import tv.own.owntv.mobile.ui.screens.settings.customize.CustomizeItemsPane
 import tv.own.owntv.mobile.ui.screens.settings.customize.CustomizeItemsViewModel
-import tv.own.owntv.mobile.ui.screens.settings.customize.CustomizePinGate
 import tv.own.owntv.mobile.ui.screens.settings.customize.CustomizeViewModel
 
 /**
@@ -30,10 +29,7 @@ fun SettingsCustomizePage(
     vm: CustomizeViewModel = koinViewModel(),
     itemsVm: CustomizeItemsViewModel = koinViewModel(),
 ) {
-    val pinLock by vm.pinLock.collectAsStateWithLifecycle()
     val selected by vm.selectedCategory.collectAsStateWithLifecycle()
-    // Unlocking lasts as long as the page is open; leaving settings asks for the PIN again.
-    var unlocked by remember { mutableStateOf(false) }
 
     // Feed the second level from the first, so it always pages the folder that was just opened.
     val ctx = vm.ctxForItems()
@@ -51,15 +47,6 @@ fun SettingsCustomizePage(
         } else {
             itemsVm.close()
         }
-    }
-
-    // Nothing is shown until the stored PIN is known, so a locked page never flashes its contents.
-    if (!pinLock.loaded) return
-
-    val pin = pinLock.pin
-    if (pin != null && !unlocked) {
-        CustomizePinGate(storedPin = pin, onUnlock = { unlocked = true })
-        return
     }
 
     if (selected != null) {

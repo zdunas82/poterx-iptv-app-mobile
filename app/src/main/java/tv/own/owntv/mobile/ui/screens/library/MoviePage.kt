@@ -135,6 +135,8 @@ internal fun MoviePage(
     // actions find them the moment it opens (and it names the film's category in the menu's header).
     val categories by library.categories.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
+    val downloadsAllowed by org.koin.compose.koinInject<tv.own.owntv.core.settings.SettingsRepository>().activeDownloadsAllowed
+        .collectAsStateWithLifecycle(true)
     val resumeGate = rememberResumeGate()
 
     val title = HeadlineTitle.of(film.name)
@@ -216,7 +218,7 @@ internal fun MoviePage(
                 modifier = Modifier.weight(1f),
             )
             val download = downloadActionFor(itemDownloads)
-            StageButton(
+            if (downloadsAllowed) StageButton(
                 onClick = download.onTap(
                     onDownload = vm::download,
                     onRetry = { vm.retryDownloads(itemDownloads) },

@@ -21,7 +21,6 @@ import tv.own.owntv.core.companion.CompanionLink
 import tv.own.owntv.core.companion.CompanionServerState
 import tv.own.owntv.core.database.dao.ProfileDao
 import tv.own.owntv.core.database.entity.ProfileEntity
-import tv.own.owntv.core.profile.ProfileManager
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.R
 import java.io.File
@@ -36,12 +35,38 @@ import java.io.File
  */
 class BackupViewModel(
     private val backup: BackupManager,
-    private val profileManager: ProfileManager,
     private val context: Context,
     profileDao: ProfileDao,
     settings: SettingsRepository,
     private val companion: CompanionController,
+    private val protection: tv.own.owntv.core.profile.ProfileProtection,
 ) : ViewModel() {
+
+    /** Profiles with a profile lock or a Settings lock: another profile needs one of their PINs. */
+    suspend fun protectedIds(): Set<Long> = protection.protectedIds()
+
+    /** A restore waiting for what to do with the file's profiles named like ones here. */
+    class ClashAsk(
+        val sections: Set<BackupManager.Section>,
+        val password: String?,
+        val deviceSettings: Boolean,
+        val clashes: List<BackupManager.ProfileClash>,
+        val protectedIds: Set<Long>,
+    )
+
+    var clashAsk by mutableStateOf<ClashAsk?>(null)
+        private set
+
+    /** Every clash answered, by the profile's id in the file: the restore runs now. */
+    fun clashesAnswered(choices: Map<Long, BackupManager.ProfileRestoreChoice>) {
+        val ask = clashAsk ?: return
+        clashAsk = null
+        restore(ask.sections, ask.password, ask.deviceSettings, choices)
+    }
+
+    fun cancelClashes() {
+        clashAsk = null
+    }
 
     val profiles: StateFlow<List<ProfileEntity>> = profileDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
@@ -126,7 +151,21 @@ class BackupViewModel(
         }
     }
 
-    fun verifyPin(profile: ProfileEntity, pin: String): Boolean = profileManager.verifyPin(profile, pin)
+    /** A protected profile's profile PIN or Settings PIN, for including or changing it. */
+    suspend fun verifyPin(profile: ProfileEntity, pin: String): tv.own.owntv.core.categorylock.PinAttempt = protection.verify(profile, pin)
+
+    /**
+     * What to write once the save picker returns: the user has already said what to export, and the
+     * picker only decides where it goes. Held here rather than in the page, so an activity recreated
+     * while the picker is in front still writes the file. In memory only — it carries the password.
+     */
+    internal var pendingFileExport: ExportRequest? = null
+
+    /** No app on this phone can answer the save picker. */
+    fun reportNoFileApp() {
+        pendingFileExport = null
+        outcome = Outcome.Failed(R.string.settings_backup_no_file_app)
+    }
 
     /** The picked document could not even be copied out of its provider — nothing to inspect. */
     fun reportReadFailure() {
@@ -205,12 +244,26 @@ class BackupViewModel(
      * Restore [sections]. [password] may be null even for an encrypted file: everything but the
      * saved passwords comes back, which is a fair trade for a forgotten passphrase.
      */
-    fun restore(sections: Set<BackupManager.Section>, password: String?, deviceSettings: Boolean = false) {
+    fun restore(
+        sections: Set<BackupManager.Section>,
+        password: String?,
+        deviceSettings: Boolean = false,
+        choices: Map<Long, BackupManager.ProfileRestoreChoice>? = null,
+    ) {
         val current = pending ?: return
         if (busy) return
         viewModelScope.launch {
             busy = true
-            backup.import(current.file, sections, password ?: current.password, deviceSettings = deviceSettings).fold(
+            val key = password ?: current.password
+            if (choices == null) {
+                val clashes = backup.sectionsIn(current.file, key).getOrNull()?.clashes.orEmpty()
+                if (clashes.isNotEmpty()) {
+                    clashAsk = ClashAsk(sections, password, deviceSettings, clashes, protection.protectedIds())
+                    busy = false
+                    return@launch
+                }
+            }
+            backup.import(current.file, sections, key, deviceSettings = deviceSettings, profileChoices = choices.orEmpty()).fold(
                 onSuccess = {
                     outcome = Outcome.Restored(it)
                     current.file.delete()

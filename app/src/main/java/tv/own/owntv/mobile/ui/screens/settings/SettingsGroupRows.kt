@@ -585,6 +585,8 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
     val dnsHost = dns.dohUrl.ifBlank { dns.host }.removePrefix("https://").substringBefore('/')
     val volume = remember(root) { volumeName(context, root.ifBlank { null }) }
 
+    val lockVm: tv.own.owntv.mobile.ui.categorylock.SettingsPinViewModel = org.koin.androidx.compose.koinViewModel()
+    val settingsLock by lockVm.lock.collectAsStateWithLifecycle()
     var channelSheet by remember { mutableStateOf(false) }
     if (channelSheet) {
         StartupChannelSheet(vm, onPick = { picked -> vm.setStartupChannel(picked); channelSheet = false }, onDismiss = { channelSheet = false })
@@ -619,6 +621,17 @@ private fun appSections(vm: SettingsViewModel): List<SettingSection> {
                     { picked -> if (picked == StartupMode.SPECIFIC_CHANNEL) channelSheet = true else vm.setStartupMode(picked) },
                     valueText = if (mode == StartupMode.SPECIFIC_CHANNEL && channel != null) channel.name else stringResource(mode.startupLabel()),
                 ),
+                SettingItem(
+                    "settings_lock", MobileIcons.Lock, stringResource(R.string.settings_lock), stringResource(R.string.settings_line_settings_lock),
+                    SettingValue.Opens(if (settingsLock.on) on else off),
+                    sheet = { dismiss -> SettingsLockSheet(lockVm, onDismiss = dismiss) },
+                ),
+                *listOfNotNull(
+                    switchItem(
+                        "settings_lock_menus", MobileIcons.Lock, stringResource(R.string.settings_lock_menus),
+                        stringResource(R.string.settings_lock_menus_description), settingsLock.lockMenus,
+                    ) { lockVm.setLockMenus(it) }.takeIf { settingsLock.on },
+                ).toTypedArray(),
                 SettingItem(
                     "check_updates", MobileIcons.Refresh, stringResource(R.string.settings_check_updates), stringResource(R.string.settings_line_check_updates),
                     SettingValue.Action(stringResource(R.string.settings_check_now)),
@@ -753,6 +766,8 @@ private fun localeLabel(tag: String): String =
 private fun StartupMode.startupLabel() = when (this) {
     StartupMode.HOME -> R.string.settings_startup_home
     StartupMode.LAST_CHANNEL -> R.string.settings_startup_last_channel
+    StartupMode.LAST_CHANNEL_GUIDE -> R.string.settings_startup_last_channel_guide
+    StartupMode.LAST_CHANNEL_LIVE -> R.string.settings_startup_last_channel_live
     StartupMode.FAVORITES -> R.string.settings_startup_favorites
     StartupMode.SPECIFIC_CHANNEL -> R.string.settings_startup_specific_channel
 }

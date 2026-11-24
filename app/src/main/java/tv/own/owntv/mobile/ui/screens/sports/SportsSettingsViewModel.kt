@@ -14,6 +14,7 @@ import tv.own.owntv.core.sports.FollowedTeam
 import tv.own.owntv.core.sports.RebuildState
 import tv.own.owntv.core.sports.SportsActivityTracker
 import tv.own.owntv.core.sports.SportsAlertsSetup
+import tv.own.owntv.core.sports.SportsCalendar
 import tv.own.owntv.core.sports.SportsCatalog
 import tv.own.owntv.core.sports.SportsConfig
 import tv.own.owntv.core.sports.SportsMemory
@@ -36,6 +37,7 @@ class SportsSettingsViewModel(
     activity: SportsActivityTracker,
     sourceDao: SourceDao,
     private val alerts: SportsAlertsSetup,
+    private val calendar: SportsCalendar,
 ) : ViewModel() {
     val config: StateFlow<SportsConfig> = settings.activeSportsConfig
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SportsConfig())
@@ -50,7 +52,23 @@ class SportsSettingsViewModel(
     val rebuilding: StateFlow<Boolean> = activity.rebuild.map { it is RebuildState.Running }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    fun rebuild() = repository.rebuild()
+    /** Refresh sports data now: the board built again, and the saved current and future calendar months marked out of date. */
+    fun rebuild() {
+        repository.rebuild()
+        calendar.markStale()
+    }
+
+    /**
+     * A followed team's page, which knows its sport but not its league: the followed league whose table on
+     * the board lists it, else the sport's first followed league, else its first league.
+     */
+    fun teamRefFor(team: FollowedTeam): TeamRef? {
+        val board = repository.board.value
+        val leagues = config.value.followedLeagues().mapNotNull(SportsCatalog::league).filter { it.sport == team.sport }
+        val league = leagues.firstOrNull { l -> board.standings[l.key]?.groups?.any { g -> g.rows.any { it.team.id == team.id } } == true }
+            ?: leagues.firstOrNull() ?: SportsCatalog.leaguesOf(team.sport).firstOrNull() ?: return null
+        return teamRefOf(league, Team(team.id, team.name, abbreviation = team.abbreviation))
+    }
 
     /** The app's language, which ranks first until the user picks commentary languages. */
     val appLanguage: String get() = Locale.getDefault().language

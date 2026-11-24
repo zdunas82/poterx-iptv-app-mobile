@@ -42,9 +42,11 @@ import tv.own.owntv.core.database.entity.RecordingEntity
 import tv.own.owntv.mobile.ui.components.ExportDocument
 import tv.own.owntv.core.model.RecordingStatus
 import tv.own.owntv.core.recording.RecordingRules
+import tv.own.owntv.core.recording.SeriesRecording
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
+import tv.own.owntv.mobile.ui.screens.settings.StageConfirmSheet
 
 /**
  * Live TV recorded onto this phone: the list, grouped under its status headings — what is happening
@@ -62,11 +64,15 @@ fun RecordingsScreen(
     vm: RecordingsViewModel = koinViewModel(),
 ) {
     val rows by vm.rows.collectAsStateWithLifecycle()
+    val seriesRules by vm.seriesRules.collectAsStateWithLifecycle()
     val missing by vm.missingFiles.collectAsStateWithLifecycle()
     val playing by vm.playing.collectAsStateWithLifecycle()
 
     var menuFor by remember { mutableStateOf<RecordingEntity?>(null) }
+    var seriesMenuFor by remember { mutableStateOf<SeriesRecording?>(null) }
     var savingCopyOf by remember { mutableStateOf<RecordingEntity?>(null) }
+    // Delete takes the file off the device for good, so it asks first.
+    var confirmDelete by remember { mutableStateOf<RecordingEntity?>(null) }
 
     // The system's own "where do you want it?" — the only way an app may write outside its folder
     // on Android 11 without asking for a permission Play scrutinises.
@@ -92,7 +98,7 @@ fun RecordingsScreen(
         .filter { it.second.isNotEmpty() }
 
     Column(modifier.fillMaxSize()) {
-        if (rows.isEmpty()) {
+        if (rows.isEmpty() && seriesRules.isEmpty()) {
             // The Downloads list's own empty line (Stage), under the tabs rather than centred on the page.
             Text(
                 text = stringResource(R.string.recording_empty),
@@ -102,6 +108,20 @@ fun RecordingsScreen(
             )
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
+                // First, the programmes set to record every showing: one that is on every day fills the
+                // drive with no end, and this is where it is stopped without finding a showing in the guide.
+                if (seriesRules.isNotEmpty()) {
+                    item(key = "header_series") {
+                        StageLabel(stringResource(R.string.recording_group_series), Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp))
+                    }
+                    items(seriesRules, key = { "series_${it.rule.id}" }) { s ->
+                        SeriesRuleRow(
+                            series = s,
+                            next = rows.filter { it.ruleId == s.rule.id && it.status == RecordingStatus.SCHEDULED }.minByOrNull { it.startMs },
+                            onClick = { seriesMenuFor = s },
+                        )
+                    }
+                }
                 sections.forEach { (section, items) ->
                     item(key = "header_${section.name}") {
                         StageLabel(stringResource(section.labelRes), Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp))
@@ -131,7 +151,32 @@ fun RecordingsScreen(
                 savingCopyOf = recording
                 saveCopy.launch(recording.filePath?.substringAfterLast('/') ?: recording.title)
             },
+            onDelete = { confirmDelete = recording },
             onDismiss = { menuFor = null },
+        )
+    }
+
+    seriesMenuFor?.let { s ->
+        MobileBottomSheet(onDismissRequest = { seriesMenuFor = null }, title = s.rule.title) {
+            StageSheetHeader(title = s.rule.title, subtitle = s.rule.channelName)
+            StageMenuItem(
+                stringResource(R.string.recording_stop_series),
+                { vm.stopSeries(s.rule); seriesMenuFor = null },
+                icon = MobileIcons.Delete,
+                danger = true,
+            )
+        }
+    }
+
+    confirmDelete?.let { recording ->
+        StageConfirmSheet(
+            title = stringResource(R.string.content_downloads_delete_title, recording.title),
+            text = stringResource(R.string.recording_delete_message),
+            confirm = stringResource(R.string.common_delete),
+            confirmIcon = MobileIcons.Delete,
+            danger = true,
+            onConfirm = { vm.delete(recording) },
+            onDismiss = { confirmDelete = null },
         )
     }
 }
@@ -199,6 +244,30 @@ private fun RecordingRow(recording: RecordingEntity, onClick: () -> Unit, onLong
     }
 }
 
+/** A programme set to record every showing: its channel's logo, its name, the channel, and its next scheduled showing. */
+@Composable
+private fun SeriesRuleRow(series: SeriesRecording, next: RecordingEntity?, onClick: () -> Unit) {
+    val palette = LocalStagePalette.current
+    StageRow(onClick = onClick, onLongClick = onClick, minHeight = 78.dp) {
+        Box(
+            Modifier.width(104.dp).aspectRatio(16f / 9f).clip(RoundedCornerShape(10.dp)).background(palette.cardSolid).padding(12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            ChannelLogoImage(
+                url = series.channelLogoUrl,
+                fallback = { StageIcon(MobileIcons.LiveTv, 22.dp, palette.dim) },
+                plateOn = palette.cardSolid,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Column(Modifier.weight(1f).padding(vertical = 8.dp)) {
+            Text(series.rule.title, style = stageText(13.5f, 700), color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(series.rule.channelName, style = stageText(12f, 500), color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 1.dp))
+            next?.let { Text(statusLine(it), style = stageText(12f, 500), color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
+    }
+}
+
 /** Where this recording got to, or why it never did. */
 @Composable
 private fun statusLine(recording: RecordingEntity): String {
@@ -229,6 +298,7 @@ private fun RecordingMenu(
     gone: Boolean,
     vm: RecordingsViewModel,
     onSaveCopy: () -> Unit,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     MobileBottomSheet(onDismissRequest = onDismiss, title = recording.title) {
@@ -261,7 +331,7 @@ private fun RecordingMenu(
         // Nothing to delete while it is only scheduled: there is no file yet, and Cancel is what "do not do
         // this" means.
         if (recording.status != RecordingStatus.SCHEDULED) {
-            StageMenuItem(stringResource(R.string.common_delete), act { vm.delete(recording) }, icon = MobileIcons.Delete, danger = true)
+            StageMenuItem(stringResource(R.string.common_delete), act(onDelete), icon = MobileIcons.Delete, danger = true)
         }
     }
 }

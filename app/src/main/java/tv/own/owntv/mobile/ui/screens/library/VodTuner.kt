@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.own.owntv.core.content.AdultCategoryClassifier
+import tv.own.owntv.core.customize.CustomizationStore
+import tv.own.owntv.core.customize.ItemCategory
 import tv.own.owntv.core.database.dao.CategoryDao
 import tv.own.owntv.core.database.dao.HistoryDao
 import tv.own.owntv.core.database.dao.MovieDao
@@ -28,6 +30,7 @@ import tv.own.owntv.core.database.entity.WatchHistoryEntity
 import tv.own.owntv.core.metadata.MetadataRepository
 import tv.own.owntv.core.model.MediaType
 import tv.own.owntv.core.player.ExternalPlayerLauncher
+import tv.own.owntv.core.metadata.MetadataImages
 import tv.own.owntv.core.player.enginePinKey
 import tv.own.owntv.core.database.dao.resolveExistingProfileId
 import tv.own.owntv.core.settings.SettingsRepository
@@ -74,6 +77,8 @@ data class VodPlayback(
      * session. Last in the list because every other caller passes these positionally.
      */
     val sourceId: Long? = null,
+    /** The category of the film, the show or the recording's channel: what a category lock checks. */
+    val categoryId: Long? = null,
 )
 
 /**
@@ -108,6 +113,8 @@ class VodTuner(
     val player: OwnTVPlayer,
     /** Lets core's background catalogue drain know a playlist is in use. */
     private val watchSession: tv.own.owntv.core.live.WatchSession,
+    /** Category locks: nothing in a category the PIN has not opened plays. */
+    private val customize: CustomizationStore,
 ) : CastHandoff {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -171,6 +178,8 @@ class VodTuner(
                     episodeLabel(episode),
                     q.show.posterUrl,
                     q.show.id,
+                    q.show.sourceId,
+                    q.show.categoryId,
                 )
                 playingProfileId = q.profileId
                 subtitleController.setEpisode(q.profileId, q.show, episode, q.parentTmdbId)
@@ -204,7 +213,7 @@ class VodTuner(
     suspend fun playMovie(movieId: Long, startPositionMs: Long = 0): Boolean {
         val movie = withContext(Dispatchers.IO) { movieDao.getById(movieId) } ?: return false
         val pid = currentProfileId() ?: return false
-        if (!AdultCategoryClassifier.allows(pid, movie.categoryId, profileDao, categoryDao)) return false
+        if (!allows(pid, movie.categoryId)) return false
         val source = withContext(Dispatchers.IO) { sourceDao.getById(movie.sourceId) }
 
         // A protected item cannot go to an external player: no intent extra carries a licence
@@ -215,6 +224,7 @@ class VodTuner(
 
         if (!dataSaver.allowsStreaming()) return false
         val url = resolve(source, movie.streamUrl) ?: return false
+        val movieKey = enginePinKey(movie.sourceId, "MOVIE", movie.remoteId)
         saveProgress()
         liveTuner.stop()
         val handedOver = cast.offer(
@@ -240,16 +250,20 @@ class VodTuner(
                 httpHeaders = SourceOverrides.headersWithReferer(movie.httpHeaders, source),
                 drmConfig = movie.drmConfig,
                 manifestType = movie.manifestType,
-                contentKey = enginePinKey(movie.sourceId, "MOVIE", movie.remoteId),
+                contentKey = movieKey,
                 reconnectProvider = reconnectFor(source, movie.streamUrl),
                 vodEngineOverride = SourceOverrides.vodEngineOf(source),
             )
         }
-        began(pid, VodPlayback(MediaType.MOVIE, movie.id, movie.name, posterUrl = movie.posterUrl, sourceId = movie.sourceId), handedOver)
+        began(pid, VodPlayback(MediaType.MOVIE, movie.id, movie.name, posterUrl = movie.posterUrl, sourceId = movie.sourceId, categoryId = movie.categoryId), handedOver)
         playingQueue = null
-        // Turns on the player's "Add subtitles" search for this film. The TMDB id is a precision
-        // boost when the metadata cache has one, never a requirement.
-        subtitleController.setMovie(pid, movie, runCatching { metadata.resolveMovie(movie)?.tmdbId?.toLong() }.getOrNull())
+        // The film's details, after playback has started: its title art for the player bar, and its
+        // TMDB id, a precision boost (never a requirement) for the player's "Add subtitles" search.
+        val details = runCatching { metadata.resolveMovie(movie) }.getOrNull()
+        if (!handedOver) {
+            player.setTitleLogo(movieKey, MetadataImages.logo(details?.logoPath))
+        }
+        subtitleController.setMovie(pid, movie, details?.tmdbId?.toLong())
         return true
     }
 
@@ -262,7 +276,7 @@ class VodTuner(
         val episode = withContext(Dispatchers.IO) { seriesDao.getEpisodeById(episodeId) } ?: return false
         val show = withContext(Dispatchers.IO) { seriesDao.getSeriesById(episode.seriesId) } ?: return false
         val pid = currentProfileId() ?: return false
-        if (!AdultCategoryClassifier.allows(pid, show.categoryId, profileDao, categoryDao)) return false
+        if (!allows(pid, show.categoryId)) return false
         val source = withContext(Dispatchers.IO) { sourceDao.getById(show.sourceId) }
         val title = show.name
         val subtitle = episodeLabel(episode)
@@ -280,6 +294,7 @@ class VodTuner(
             .ifEmpty { listOf(episode) }
         val startIndex = episodes.indexOfFirst { it.id == episode.id }.coerceAtLeast(0)
         val needsResolve = streamUrlResolver.needsResolve(source)
+        val showKey = enginePinKey(show.sourceId, "SERIES", show.remoteId)
 
         // The receiver takes one item, not the season. Auto-advance to the next episode is one of the
         // things casting costs, along with the fallback ladder and the subtitle rendering — there is
@@ -308,7 +323,7 @@ class VodTuner(
                         logoUrl = show.posterUrl,
                         contentKey = enginePinKey(show.sourceId, "EPISODE", ep.remoteId),
                         // v44 — audio/subtitle choices are remembered per series.
-                        trackKey = enginePinKey(show.sourceId, "SERIES", show.remoteId),
+                        trackKey = showKey,
                         seasonNumber = ep.seasonNumber,
                         episodeNumber = ep.episodeNumber,
                     ),
@@ -329,8 +344,14 @@ class VodTuner(
             userAgent = source?.userAgent,
             vodEngineOverride = SourceOverrides.vodEngineOf(source),
         )
-        began(pid, VodPlayback(MediaType.EPISODE, episode.id, title, subtitle, show.posterUrl, show.id, show.sourceId), handedOver)
-        val parentTmdbId = runCatching { metadata.resolveSeries(show)?.tmdbId?.toLong() }.getOrNull()
+        began(pid, VodPlayback(MediaType.EPISODE, episode.id, title, subtitle, show.posterUrl, show.id, show.sourceId, show.categoryId), handedOver)
+        // The show's details, after playback has started: its title art for the player bar (keyed on
+        // the show, so it stays for the whole queue) and its TMDB id for the subtitle search.
+        val showDetails = runCatching { metadata.resolveSeries(show) }.getOrNull()
+        if (!handedOver) {
+            player.setTitleLogo(showKey, MetadataImages.logo(showDetails?.logoPath))
+        }
+        val parentTmdbId = showDetails?.tmdbId?.toLong()
         subtitleController.setEpisode(pid, show, episode, parentTmdbId)
         // Nothing follows a cast episode, so there is no queue to follow either — and a queue kept
         // here would have the player's advance callback re-pointing a stream it is not driving.
@@ -353,7 +374,8 @@ class VodTuner(
         posterUrl: String?,
     ): Boolean {
         val pid = currentProfileId() ?: return false
-        if (!downloadAllowed(mediaType, itemId, pid)) return false
+        val category = downloadCategory(mediaType, itemId)
+        if (!downloadAllowed(category, pid)) return false
         if (settings.externalPlayerFor(mediaType).first()) {
             externalPlayerLauncher.launch(filePath, title)
             return false
@@ -371,7 +393,7 @@ class VodTuner(
             isLive = false,
             startPositionMs = resume?.positionMs ?: 0L,
         )
-        began(pid, VodPlayback(mediaType, itemId, title, posterUrl = posterUrl))
+        began(pid, VodPlayback(mediaType, itemId, title, posterUrl = posterUrl, categoryId = (category as? ItemCategory.Found)?.id))
         playingQueue = null
         setDownloadSubtitleContext(pid, mediaType, itemId, filePath)
         return true
@@ -393,7 +415,7 @@ class VodTuner(
      *   source, and a file on disk seeks, pauses and ends — treating it as live would take away the
      *   scrub bar on the one recording a user most wants to skip through.
      */
-    suspend fun playRecording(filePath: String, title: String, posterUrl: String?): Boolean {
+    suspend fun playRecording(filePath: String, title: String, posterUrl: String?, categoryId: Long? = null): Boolean {
         val pid = currentProfileId() ?: return false
         if (settings.externalPlayerFor(MediaType.LIVE).first()) {
             externalPlayerLauncher.launch(filePath, title)
@@ -409,7 +431,7 @@ class VodTuner(
         session.attach(engine)
         PlaybackService.start(context)
         playingProfileId = pid
-        _playing.value = VodPlayback(MediaType.LIVE, RECORDING_ITEM_ID, title, posterUrl = posterUrl)
+        _playing.value = VodPlayback(MediaType.LIVE, RECORDING_ITEM_ID, title, posterUrl = posterUrl, categoryId = categoryId)
         playingQueue = null
         return true
     }
@@ -436,25 +458,35 @@ class VodTuner(
      * download whose playlist has since been deleted cannot be classified at all, so a kids profile
      * is refused it — the same call the television makes.
      */
-    private suspend fun downloadAllowed(mediaType: MediaType, itemId: Long, profileId: Long): Boolean {
-        val item = withContext(Dispatchers.IO) {
-            when (mediaType) {
-                MediaType.MOVIE -> movieDao.getById(itemId)?.categoryId to true
-                else -> seriesDao.getEpisodeById(itemId)
-                    ?.let { seriesDao.getSeriesById(it.seriesId) }
-                    ?.let { it.categoryId to true } ?: (null to false)
-            }
+    /** Where a downloaded film or episode is filed: its film's or show's category, or unresolved once the playlist no longer has it. */
+    private suspend fun downloadCategory(mediaType: MediaType, itemId: Long): ItemCategory = withContext(Dispatchers.IO) {
+        when (mediaType) {
+            MediaType.MOVIE -> movieDao.getById(itemId)?.let { ItemCategory.Found(it.categoryId) } ?: ItemCategory.Unresolved
+            else -> seriesDao.getEpisodeById(itemId)
+                ?.let { seriesDao.getSeriesById(it.seriesId) }
+                ?.let { ItemCategory.Found(it.categoryId) } ?: ItemCategory.Unresolved
         }
-        if (mediaType == MediaType.MOVIE && item.first == null && !item.second) return false
-        return AdultCategoryClassifier.allows(profileId, item.first, profileDao, categoryDao)
     }
+
+    /**
+     * A download plays unless the profile may not see its category, or a lock keeps that category shut.
+     * One whose film or show is gone has no category to check: it plays, except while the profile has a
+     * lock that is not open, since it may have come from that category.
+     */
+    private suspend fun downloadAllowed(category: ItemCategory, profileId: Long): Boolean =
+        AdultCategoryClassifier.allows(profileId, (category as? ItemCategory.Found)?.id, profileDao, categoryDao) &&
+            !customize.sealsItem(profileId, category)
+
+    /** What the profile may play from [categoryId]: not an adult one on a kids profile, nor a locked one the PIN has not opened. */
+    private suspend fun allows(profileId: Long, categoryId: Long?): Boolean =
+        AdultCategoryClassifier.allows(profileId, categoryId, profileDao, categoryDao) && !customize.sealsCategory(profileId, categoryId)
 
     /** Hand the item to VLC, MX Player or whatever else is installed — the long-press action, and the
      *  "External player" setting's route. History is recorded and the saved resume point handed over;
      *  where the other app stops cannot be read back. */
     suspend fun playExternal(movie: MovieEntity): Boolean {
         val pid = currentProfileId() ?: return false
-        if (!AdultCategoryClassifier.allows(pid, movie.categoryId, profileDao, categoryDao)) return false
+        if (!allows(pid, movie.categoryId)) return false
         val source = withContext(Dispatchers.IO) { sourceDao.getById(movie.sourceId) }
         return handOver(movie.name, source, movie.streamUrl, movie.httpHeaders, pid, MediaType.MOVIE, movie.id, savedPositionMs(pid, MediaType.MOVIE, movie.id))
     }
@@ -462,7 +494,7 @@ class VodTuner(
     /** [playExternal] for an episode of [show]. */
     suspend fun playExternal(show: SeriesEntity, episode: EpisodeEntity): Boolean {
         val pid = currentProfileId() ?: return false
-        if (!AdultCategoryClassifier.allows(pid, show.categoryId, profileDao, categoryDao)) return false
+        if (!allows(pid, show.categoryId)) return false
         val source = withContext(Dispatchers.IO) { sourceDao.getById(show.sourceId) }
         return handOver(show.name, source, episode.streamUrl, episode.httpHeaders, pid, MediaType.EPISODE, episode.id, savedPositionMs(pid, MediaType.EPISODE, episode.id))
     }

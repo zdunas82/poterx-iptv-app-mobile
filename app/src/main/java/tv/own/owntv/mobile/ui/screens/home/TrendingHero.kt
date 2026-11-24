@@ -410,6 +410,7 @@ fun TrendingPosters(
 /**
  * Hold on the hero: WATCH (Play, Trailer, All versions), LIBRARY (favourites, download) and
  * DETAILS (More details, Why this title is here — both open the ⓘ sheet, which holds the why).
+ * [onDownload] is null for a profile that may not download, and the row is left out.
  */
 @Composable
 fun TrendingMenuSheet(
@@ -419,7 +420,7 @@ fun TrendingMenuSheet(
     onPlay: () -> Unit,
     onVersions: () -> Unit,
     onFavourite: () -> Unit,
-    onDownload: () -> Unit,
+    onDownload: (() -> Unit)?,
     onInfo: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -468,11 +469,13 @@ fun TrendingMenuSheet(
             onClick = { run(onFavourite) },
             icon = if (favourite) MobileIcons.Favorite else MobileIcons.FavoriteBorder,
         )
-        StageMenuItem(
-            label = stringResource(if (isMovie) R.string.content_download else R.string.content_download_all_episodes),
-            onClick = { run(onDownload) },
-            icon = MobileIcons.Download,
-        )
+        if (onDownload != null) {
+            StageMenuItem(
+                label = stringResource(if (isMovie) R.string.content_download else R.string.content_download_all_episodes),
+                onClick = { run(onDownload) },
+                icon = MobileIcons.Download,
+            )
+        }
         StageGroupLabel(stringResource(R.string.content_menu_group_details))
         StageMenuItem(label = stringResource(R.string.home_trending_more_details), onClick = { run(onInfo) }, icon = MobileIcons.Info)
         StageMenuItem(label = stringResource(R.string.home_trending_why_menu), onClick = { run(onInfo) }, icon = MobileIcons.AutoAwesome)

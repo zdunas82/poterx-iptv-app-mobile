@@ -11,6 +11,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -21,8 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.koin.androidx.compose.koinViewModel
+import tv.own.owntv.core.menu.MenuLayout
 import tv.own.owntv.core.menu.applyMenuOrder
-import tv.own.owntv.core.menu.catalogue
+import tv.own.owntv.core.menu.phoneCatalogue
 import tv.own.owntv.core.model.ContentMenu
 import tv.own.owntv.core.theme.AccentColor
 import tv.own.owntv.core.theme.ThemeMode
@@ -33,6 +36,8 @@ import tv.own.owntv.mobile.ui.components.ColorPickerSheet
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
+import tv.own.owntv.mobile.ui.stage.StageButton
+import tv.own.owntv.mobile.ui.stage.StageButtonStyle
 import tv.own.owntv.mobile.ui.stage.StageMenuItem
 import tv.own.owntv.mobile.ui.stage.StageSheetHeader
 import tv.own.owntv.mobile.ui.stage.StageStepper
@@ -112,7 +117,7 @@ private fun ColourRow(label: String, color: Color?, on: Boolean, onClick: () -> 
 
 /**
  * Layout › Browsing & lists: for Live TV, Movies and Series, whether a section reopens on the category and
- * the item last used.
+ * the item last used; then whether Live TV lists its built-in Catch-up and All channels categories.
  */
 @Composable
 fun SettingsBrowsingPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koinViewModel()) {
@@ -126,26 +131,42 @@ fun SettingsBrowsingPage(modifier: Modifier = Modifier, vm: SettingsViewModel = 
             (({ on: Boolean -> vm.edit { setRememberCategorySeries(on) } }) to ({ on: Boolean -> vm.edit { setRememberLastSeries(on) } }))),
     )
     val note = stringResource(R.string.settings_browsing_description_full)
+    // Live TV's section only: whether the TV Guide shares its remembered category, under that row.
+    val guideFollows = switchItem(
+        "browse_guide_follows_live", MobileIcons.Guide, stringResource(R.string.settings_guide_follows_live),
+        stringResource(R.string.settings_guide_follows_live_description), s.guideFollowsLiveCategory.pref(false),
+    ) { on -> vm.edit { setGuideFollowsLiveCategory(on) } }
     val built = sections.map { (titleRes, values, setters) ->
         SettingSection(
             stringResource(titleRes),
-            listOf(
+            listOfNotNull(
                 switchItem("browse_cat_$titleRes", MobileIcons.Folder, stringResource(R.string.settings_browsing_last_category), null, values.first, setters.first),
+                guideFollows.takeIf { titleRes == R.string.common_nav_live_tv },
                 switchItem("browse_item_$titleRes", MobileIcons.History, stringResource(R.string.settings_browsing_last_item), null, values.second, setters.second),
             ),
         )
     }
+    val builtIns = s.liveBuiltIns.pref(tv.own.owntv.core.live.LiveBuiltIns())
+    val liveCategories = SettingSection(
+        stringResource(R.string.settings_browsing_live_categories),
+        listOf(
+            switchItem("browse_live_catchup", MobileIcons.Catchup, stringResource(R.string.content_catchup), null, builtIns.showCatchup) { on -> vm.edit { setLiveShowCatchupRail(on) } },
+            switchItem("browse_live_all", MobileIcons.LiveTv, stringResource(R.string.content_category_all_channels), null, builtIns.showAll) { on -> vm.edit { setLiveShowAllRail(on) } },
+        ),
+    )
+    val liveCategoriesNote = stringResource(R.string.settings_browsing_live_categories_description)
     val pins = rememberQuickPins(vm)
     SettingsStagePage(modifier) {
         item(key = "note") { PageNote(note) }
         // These rows are not Quick toggles; a hold does nothing.
-        settingSections(built.map { sec -> SettingSection(sec.title, sec.items.map { it.unpinnable() }) }, pins) {}
+        settingSections((built + liveCategories).map { sec -> SettingSection(sec.title, sec.items.map { it.unpinnable() }) }, pins) {}
+        item(key = "live_categories_note") { PageNote(liveCategoriesNote) }
     }
 }
 
 private fun SettingItem.unpinnable() = SettingItem(key, icon, title, line, value, onClick, sheet, pinnable = false)
 
-/** Layout › Long-press menus: Live TV, Movies, Series, Episodes — each opens its actions to rearrange. */
+/** Layout › Long-press menus: Live TV, Movies, Series, Episodes — each opens its actions to rearrange or hide. */
 @Composable
 fun SettingsMenusPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koinViewModel()) {
     var menu by remember { mutableStateOf<ContentMenu?>(null) }
@@ -160,27 +181,49 @@ fun SettingsMenusPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koi
     menu?.let { MenuOrderSheet(vm, it) { menu = null } }
 }
 
-/** One long-press menu's actions, in the order they will appear, with ↑ ↓ to rearrange them. */
+/**
+ * One long-press menu's actions, in the order they will appear, with an eye to show or hide each one
+ * and ↑ ↓ to rearrange them. A hidden action stays listed, dimmed, so it can be shown again; Reset
+ * puts the shipped menu back.
+ */
 @Composable
 private fun MenuOrderSheet(vm: SettingsViewModel, menu: ContentMenu, onDismiss: () -> Unit) {
-    val key = menu.name.lowercase()
-    val saved = remember(menu) { vm.settings.menuOrder(key) }.pref(emptyList())
-    val actions = applyMenuOrder(catalogue(menu), saved) { it.key }
+    val layout = remember(menu) { vm.settings.menuLayout(menu) }.pref(MenuLayout())
+    val actions = applyMenuOrder(phoneCatalogue(menu), layout.order) { it.key }
+    val shipped = phoneCatalogue(menu).map { it.key }
+    // A list equal to the shipped one is saved as "no order", so a later release's new action keeps its place.
+    fun save(order: List<String>, hidden: Set<String>) = vm.edit { setMenuLayout(menu, MenuLayout(order.takeIf { it != shipped }.orEmpty(), hidden)) }
     MobileBottomSheet(onDismissRequest = onDismiss) {
         StageSheetHeader(stringResource(menu.titleRes()), eyebrow = stringResource(R.string.settings_content_menus_title))
+        PageNote(stringResource(R.string.settings_content_menus_note))
         androidx.compose.foundation.layout.Column(Modifier.sheetScroll()) {
             actions.forEachIndexed { index, action ->
+                val hidden = action.key in layout.hidden
                 StageMenuItem(
                     stringResource(action.labelRes),
                     onClick = {},
+                    enabled = !hidden,
                     tags = {
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            MoveKey(MobileIcons.KeyboardArrowUp, R.string.settings_row_menu_move_up, index > 0) { vm.edit { setMenuOrder(key, actions.movedKeys(index, -1)) } }
-                            MoveKey(MobileIcons.KeyboardArrowDown, R.string.settings_row_menu_move_down, index < actions.lastIndex) { vm.edit { setMenuOrder(key, actions.movedKeys(index, 1)) } }
+                            MoveKey(
+                                if (hidden) MobileIcons.VisibilityOff else MobileIcons.Visibility,
+                                if (hidden) R.string.common_show else R.string.common_hide,
+                                true,
+                            ) { save(actions.map { it.key }, if (hidden) layout.hidden - action.key else layout.hidden + action.key) }
+                            MoveKey(MobileIcons.KeyboardArrowUp, R.string.settings_row_menu_move_up, index > 0) { save(actions.movedKeys(index, -1), layout.hidden) }
+                            MoveKey(MobileIcons.KeyboardArrowDown, R.string.settings_row_menu_move_down, index < actions.lastIndex) { save(actions.movedKeys(index, 1), layout.hidden) }
                         }
                     },
                 )
             }
+        }
+        if (layout.isCustom(menu)) {
+            StageButton(
+                onClick = { vm.edit { setMenuLayout(menu, MenuLayout()) } },
+                text = stringResource(R.string.common_reset),
+                style = StageButtonStyle.PLAIN,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+            )
         }
     }
 }

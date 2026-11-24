@@ -298,6 +298,7 @@ object MobileIcons {
             dot(12f, 18.5f, 1.7f)
         }
     }
+    val Visibility: ImageVector by lazy { stage(StageGlyph.EYE) }
     val VisibilityOff: ImageVector by lazy { stage(StageGlyph.EYE_OFF) }
 
     // ---- Atmosphere ---------------------------------------------------------------------------

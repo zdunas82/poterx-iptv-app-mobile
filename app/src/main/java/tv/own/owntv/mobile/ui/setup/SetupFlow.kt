@@ -1,5 +1,6 @@
 package tv.own.owntv.mobile.ui.setup
 
+import android.icu.text.ListFormatter
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -254,9 +256,9 @@ fun SetupFlow(
                         vm.startM3u(importName!!, url, ua, referer, refresh)
                         step = Step.IMPORTING
                     },
-                    onStartStalker = { name, portal, mac, serial, dev1, dev2, sig, ua, referer, refresh, live, movies, series ->
+                    onStartStalker = { name, portal, mac, serial, dev1, dev2, sig, ua, referer, refresh, live, movies, series, login, password ->
                         importName = name.ifBlank { defaultPortalName }
-                        vm.startStalker(importName!!, portal, mac, serial, dev1, dev2, sig, ua, referer, refresh, live, movies, series)
+                        vm.startStalker(importName!!, portal, mac, serial, dev1, dev2, sig, ua, referer, refresh, live, movies, series, login, password)
                         step = Step.IMPORTING
                     },
                 )
@@ -514,6 +516,9 @@ private fun RestoreBackup(
             sub = listOfNotNull(
                 state.restoredItems?.let { pluralStringResource(R.plurals.setup_restored_items, it, it) },
                 if (state.passwordsOmitted) stringResource(R.string.setup_passwords_omitted) else null,
+                state.needPassword.takeIf { it.isNotEmpty() }?.let {
+                    stringResource(R.string.setup_need_password, ListFormatter.getInstance(LocalConfiguration.current.locales[0]).format(it))
+                },
                 state.skippedSources.takeIf { it > 0 }?.let { pluralStringResource(R.plurals.setup_skipped_sources, it, it) },
                 if (state.invalidLocale) stringResource(R.string.setup_invalid_locale) else null,
             ).joinToString("\n"),

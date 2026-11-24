@@ -234,7 +234,8 @@ internal fun MobileNowNextCard(epg: EpgNowNext?, atMs: State<Long?>, modifier: M
                     if (remaining in 1..600) {
                         stringResource(
                             R.string.content_live_time_remaining,
-                            formatTime.format(Date(entry.stopMs)),
+                            // The whole slot, as on the TV: a lone end time read as the start.
+                            stringResource(R.string.content_live_time_range, formatTime.format(Date(entry.startMs)), formatTime.format(Date(entry.stopMs))),
                             remaining,
                         )
                     } else {

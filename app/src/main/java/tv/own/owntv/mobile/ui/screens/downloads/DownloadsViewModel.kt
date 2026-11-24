@@ -23,7 +23,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import tv.own.owntv.core.content.AdultCategoryClassifier
+import tv.own.owntv.core.categorylock.anyLockSealed
 import tv.own.owntv.core.customize.CustomizationStore
+import tv.own.owntv.core.customize.ItemCategory
+import tv.own.owntv.core.customize.sealsItem
+import tv.own.owntv.core.customize.sealsItemIn
 import tv.own.owntv.core.customize.CustomizeKeys
 import tv.own.owntv.core.database.dao.CategoryDao
 import tv.own.owntv.core.database.dao.DownloadDao
@@ -68,7 +72,9 @@ class DownloadsViewModel(
 
     /**
      * The profile's downloads, minus rows whose film or show the user has hidden — hidden is hidden
-     * everywhere, Downloads included. The file stays on disk and the row comes back on unhide.
+     * everywhere, Downloads included. The file stays on disk and the row comes back on unhide. A title in
+     * a locked category stays out the same way until the PIN opens that category; one whose film or show
+     * is gone stays out while the profile has a lock that is not open, since its category is unknown.
      */
     val downloads: StateFlow<List<DownloadEntity>> = settings.activeProfileId
         .flatMapLatest { pid ->
@@ -77,11 +83,13 @@ class DownloadsViewModel(
             } else {
                 combine(
                     downloadDao.observeForProfile(pid),
-                    customize.observe(pid, MediaType.MOVIE),
-                    customize.observe(pid, MediaType.SERIES),
+                    customize.observeVisible(pid, MediaType.MOVIE),
+                    customize.observeVisible(pid, MediaType.SERIES),
                     profileDao.observeById(pid),
-                ) { list, custMovie, custSeries, profile ->
-                    if (custMovie.hiddenItems.isEmpty() && custSeries.hiddenItems.isEmpty() &&
+                    customize.anyLockSealed(pid),
+                ) { list, custMovie, custSeries, profile, anySealed ->
+                    val noSeals = !anySealed && custMovie.sealedCategoryIds.isEmpty() && custSeries.sealedCategoryIds.isEmpty()
+                    if (custMovie.hiddenItems.isEmpty() && custSeries.hiddenItems.isEmpty() && noSeals &&
                         profile?.isKids != true
                     ) {
                         list
@@ -106,15 +114,15 @@ class DownloadsViewModel(
                         list.filterNot { d ->
                             when (d.mediaType) {
                                 MediaType.MOVIE -> movies[d.itemId]?.let { movie ->
-                                    CustomizeKeys.movie(movie) in custMovie.hiddenItems ||
+                                    CustomizeKeys.movie(movie) in custMovie.hiddenItems || custMovie.sealsItemIn(movie.categoryId) ||
                                         (isKids && AdultCategoryClassifier.isAdult(movie.categoryId?.let { categoryDao.getById(it)?.name }))
-                                } ?: isKids
+                                } ?: (isKids || custMovie.sealsItem(ItemCategory.Unresolved, anySealed))
                                 MediaType.EPISODE -> episodes[d.itemId]
                                     ?.let { series[it.seriesId] }
                                     ?.let { s ->
-                                        CustomizeKeys.series(s) in custSeries.hiddenItems ||
+                                        CustomizeKeys.series(s) in custSeries.hiddenItems || custSeries.sealsItemIn(s.categoryId) ||
                                             (isKids && AdultCategoryClassifier.isAdult(s.categoryId?.let { categoryDao.getById(it)?.name }))
-                                    } ?: isKids
+                                    } ?: (isKids || custSeries.sealsItem(ItemCategory.Unresolved, anySealed))
                                 else -> false
                             }
                         }

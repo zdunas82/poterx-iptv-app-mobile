@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -16,7 +17,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import tv.own.owntv.core.categorylock.clearWhenSealed
+import tv.own.owntv.core.categorylock.sealedCategoryIds
 import tv.own.owntv.core.content.AdultCategoryClassifier
+import tv.own.owntv.core.customize.sealsItemIn
 import tv.own.owntv.core.customize.CustomizationStore
 import tv.own.owntv.core.customize.CustomizeKeys
 import tv.own.owntv.core.database.dao.CategoryDao
@@ -97,6 +101,20 @@ class DetailViewModel(
     val movie: StateFlow<MovieEntity?> = _movie
 
     private val _show = MutableStateFlow<SeriesEntity?>(null)
+
+    init {
+        // The title's category was just locked (the relock on leaving the app, a profile change): the
+        // page stops showing it, as the lists already have.
+        viewModelScope.clearWhenSealed(_movie, sealedIds(MediaType.MOVIE)) { it.categoryId }
+        viewModelScope.clearWhenSealed(_show, sealedIds(MediaType.SERIES)) { it.categoryId }
+    }
+
+    private fun sealedIds(type: MediaType): Flow<Set<Long>> =
+        profileId.flatMapLatest { pid -> if (pid < 0) flowOf(emptySet()) else customize.sealedCategoryIds(pid, type) }
+
+    /** Whether the profile may have a title of [categoryId]: not an adult one on a kids profile, nor a locked one the PIN has not opened. */
+    private suspend fun allows(profileId: Long, categoryId: Long?): Boolean =
+        AdultCategoryClassifier.allows(profileId, categoryId, profileDao, categoryDao) && !customize.sealsCategory(profileId, categoryId)
     val show: StateFlow<SeriesEntity?> = _show
 
     /**
@@ -122,9 +140,9 @@ class DetailViewModel(
         val more = if (category == null || pid < 0) {
             emptyList()
         } else {
-            val hidden = customize.observe(pid, MediaType.MOVIE).first().hiddenItems
-            movieDao.snapshotByCategoryManual(category.id, pid, CustomizeKeys.category(category), MORE_IN_CATEGORY * 3)
-                .filter { it.id != film.id && CustomizeKeys.movie(it) !in hidden }
+            val cust = customize.observeVisible(pid, MediaType.MOVIE).first()
+            movieDao.snapshotByCategoryManual(category.id, pid, CustomizeKeys.category(category), false, MORE_IN_CATEGORY * 3)
+                .filter { it.id != film.id && CustomizeKeys.movie(it) !in cust.hiddenItems && !cust.sealsItemIn(it.categoryId) }
                 .take(MORE_IN_CATEGORY)
         }
         _titlePage.value = TitlePage(
@@ -287,13 +305,14 @@ class DetailViewModel(
         viewModelScope.launch {
             profileId.value = currentProfileId() ?: -1L
             if (tab == LibraryTab.MOVIES) {
-                val film = movieDao.getById(id)
+                // A title from a locked category the PIN has not opened does not open (search, a link).
+                val film = movieDao.getById(id)?.takeUnless { customize.sealsCategory(profileId.value, it.categoryId) }
                 _movie.value = film
                 if (film != null) loadMoviePage(film)
                 return@launch
             }
             _loading.value = true
-            val entity = seriesDao.getSeriesById(id)
+            val entity = seriesDao.getSeriesById(id)?.takeUnless { customize.sealsCategory(profileId.value, it.categoryId) }
             _show.value = entity
             if (entity != null) {
                 launch { loadSeriesPage(entity) }
@@ -377,7 +396,7 @@ class DetailViewModel(
             val pid = profileId.value.takeIf { it >= 0 } ?: return@launch
             val film = movie.value
             if (film != null) {
-                if (!AdultCategoryClassifier.allows(pid, film.categoryId, profileDao, categoryDao)) return@launch
+                if (!allows(pid, film.categoryId)) return@launch
                 downloadManager.enqueue(
                     profileId = pid,
                     mediaType = MediaType.MOVIE,
@@ -392,8 +411,16 @@ class DetailViewModel(
                 return@launch
             }
             val current = show.value ?: return@launch
-            if (!AdultCategoryClassifier.allows(pid, current.categoryId, profileDao, categoryDao)) return@launch
+            if (!allows(pid, current.categoryId)) return@launch
             seriesDao.episodesBySeriesOnce(current.id).forEach { downloadEpisode(current, it, pid) }
+        }
+    }
+
+    /** How many episodes [season] holds, handed to [then] when there are any. */
+    fun countSeasonEpisodes(season: Int, then: (Int) -> Unit) {
+        viewModelScope.launch {
+            val current = show.value ?: return@launch
+            seriesDao.episodesBySeriesOnce(current.id).count { it.seasonNumber == season }.takeIf { it > 0 }?.let(then)
         }
     }
 
@@ -402,7 +429,7 @@ class DetailViewModel(
         viewModelScope.launch {
             val pid = profileId.value.takeIf { it >= 0 } ?: return@launch
             val current = show.value ?: return@launch
-            if (!AdultCategoryClassifier.allows(pid, current.categoryId, profileDao, categoryDao)) return@launch
+            if (!allows(pid, current.categoryId)) return@launch
             seriesDao.episodesBySeriesOnce(current.id).filter { it.seasonNumber == season }.forEach { downloadEpisode(current, it, pid) }
         }
     }
@@ -411,7 +438,7 @@ class DetailViewModel(
         viewModelScope.launch {
             val pid = profileId.value.takeIf { it >= 0 } ?: return@launch
             val current = show.value ?: return@launch
-            if (!AdultCategoryClassifier.allows(pid, current.categoryId, profileDao, categoryDao)) return@launch
+            if (!allows(pid, current.categoryId)) return@launch
             downloadEpisode(current, episode, pid)
         }
     }

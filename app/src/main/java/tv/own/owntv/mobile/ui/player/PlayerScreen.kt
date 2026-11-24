@@ -118,6 +118,7 @@ fun PlayerScreen(
     vodTuner: VodTuner = koinInject(),
     pip: PipController = koinInject(),
     settings: SettingsRepository = koinInject(),
+    channelVersions: tv.own.owntv.core.live.ChannelVersions = koinInject(),
     actions: ContentActions = koinInject(),
     subtitles: SubtitleController = koinInject(),
     cast: CastController = koinInject(),
@@ -141,7 +142,8 @@ fun PlayerScreen(
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     val channel by tuner.channel.collectAsStateWithLifecycle()
-    val autoFrameRate by settings.autoFrameRate.collectAsStateWithLifecycle(initialValue = false)
+    val autoFrameRateFilms by settings.autoFrameRateFilms.collectAsStateWithLifecycle(initialValue = false)
+    val autoFrameRateLive by settings.autoFrameRateLive.collectAsStateWithLifecycle(initialValue = false)
     val previousChannel by tuner.previousChannel.collectAsStateWithLifecycle()
     val film by vodTuner.playing.collectAsStateWithLifecycle()
     val nowNext by tuner.nowNext.collectAsStateWithLifecycle()
@@ -190,6 +192,17 @@ fun PlayerScreen(
     val streamRegistry = koinInject<tv.own.owntv.core.live.OpenStreamRegistry>()
     var multiview by remember {
         mutableStateOf<tv.own.owntv.mobile.ui.screens.multiview.MobileMultiviewState?>(null)
+    }
+    // The relock reads the grid's tiles and empties those on a channel of a category it has just closed.
+    val sealedHost = koinInject<tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost>()
+    androidx.compose.runtime.DisposableEffect(multiview, sealedHost) {
+        val grid = multiview
+        sealedHost.tiles = grid?.let { g -> { g.tiles.map { it.channel?.categoryId } } }
+        sealedHost.clear = grid?.let { g -> g::clear }
+        onDispose {
+            sealedHost.tiles = null
+            sealedHost.clear = null
+        }
     }
     var multiviewPickFor by remember { mutableStateOf<Int?>(null) }
     // Which category the Multiview picker is inside, and what it holds. Null = showing categories.
@@ -298,7 +311,7 @@ fun PlayerScreen(
     val hasLocalCopy by tuner.hasLocalCopy.collectAsStateWithLifecycle()
     val catchup = remember(channel?.id, hasLocalCopy) {
         tuner.jumpOptions().takeIf { it.isNotEmpty() }?.let { offsets ->
-            CatchupOptions(offsets, tuner.archiveWindowSec(), tuner::jumpBackTo)
+            CatchupOptions(offsets, tuner.archiveWindowSec(), tuner::jumpBackTo, tuner::currentProgrammeStart)
         }
     }
 
@@ -380,6 +393,7 @@ fun PlayerScreen(
         .collectAsStateWithLifecycle(tv.own.owntv.core.sports.SportsConfig())
     val matchSession = sportsSession?.takeIf { s -> isLive && s.options.any { it.channel.id == channel?.id } }
     var otherChannels by remember { mutableStateOf(false) }
+    var showSources by remember { mutableStateOf(false) }
     // Closing the sheet forgets which category was open, so the next press starts at the categories.
     LaunchedEffect(sheet) { if (sheet != PlayerSheet.CHANNELS) playerCategory = null }
     val recordWatchingEnabled by settings.recordWhatImWatching.collectAsStateWithLifecycle(initialValue = false)
@@ -632,7 +646,8 @@ fun PlayerScreen(
     ) {
         VideoStage(
             player = player,
-            autoFrameRate = autoFrameRate,
+            // Settings › Picture › Frame rate has one switch for Live TV and one for films and series.
+            autoFrameRate = if (isLive) autoFrameRateLive else autoFrameRateFilms,
             // Where the picture actually is, so entering the little window is the picture shrinking
             // into the corner rather than the whole screen fading into it. Cleared on the way out,
             // or the system would be handed a rectangle from a screen that is no longer there.
@@ -818,7 +833,16 @@ fun PlayerScreen(
                 { tv.own.owntv.mobile.ui.screens.sports.MatchScoreLine(sportsPlayback, session.match, sportsConfig.spoilerFree) }
             },
             onOtherChannels = matchSession?.takeIf { it.options.size > 1 }?.let { { otherChannels = true } },
+            onSources = channel?.takeIf { isLive }?.let { { showSources = true } },
         )
+        channel?.takeIf { showSources }?.let { playing ->
+            SourcesSheet(
+                load = { channelVersions.of(playing) },
+                playingId = playing.id,
+                onPick = { tuner.switchTo(it) },
+                onDismiss = { showSources = false },
+            )
+        }
         if (otherChannels) {
             val session = matchSession
             if (session == null) otherChannels = false

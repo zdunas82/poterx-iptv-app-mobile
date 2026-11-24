@@ -11,13 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -44,6 +42,7 @@ import tv.own.owntv.core.model.SourceType
 import tv.own.owntv.core.parser.XtreamClient
 import tv.own.owntv.core.player.PlaybackPrefsStore
 import tv.own.owntv.core.player.VodEngineStore
+import tv.own.owntv.core.repository.SourceEditor
 import tv.own.owntv.core.repository.SourceRepository
 import tv.own.owntv.core.repository.SourceTestResult
 import tv.own.owntv.core.repository.SourceTester
@@ -56,7 +55,6 @@ import tv.own.owntv.core.stalker.StalkerClient
 import tv.own.owntv.core.stalker.stalkerCredentials
 import tv.own.owntv.core.stalker.stalkerExpiryOf
 import tv.own.owntv.core.sync.ImportFinalizer
-import tv.own.owntv.core.sync.SyncContentTypes
 import tv.own.owntv.core.sync.SyncCounts
 import tv.own.owntv.core.sync.TrendingActivityTracker
 import tv.own.owntv.core.sync.work.CatalogSyncScheduler
@@ -102,6 +100,7 @@ class SettingsViewModel(
     private val player: tv.own.owntv.player.OwnTVPlayer,
     private val livePreview: tv.own.owntv.player.LivePreviewEngine,
     private val enginePool: tv.own.owntv.player.LiveEnginePool,
+    private val sourceEditor: SourceEditor,
 ) : ViewModel() {
 
     /** Run a setter on a scope that survives the row being scrolled off the screen. */
@@ -202,10 +201,8 @@ class SettingsViewModel(
         }
     }.getOrNull()
 
-    /** How many channels, films and shows a playlist actually holds — re-counted when a sync ends. */
-    fun contentCounts(sourceId: Long): Flow<SyncCounts> = catalogSync.observeSync(sourceId)
-        .onStart { emit(CatalogSyncState.Idle) }
-        .filter { !it.isActive }
+    /** How many channels, films and shows a playlist actually holds — re-counted when a sync or the background backfill ends. */
+    fun contentCounts(sourceId: Long): Flow<SyncCounts> = catalogSync.catalogueSettled(sourceId)
         .map { importFinalizer.contentCounts(sourceId) }
 
     /**
@@ -217,16 +214,29 @@ class SettingsViewModel(
         catalogSync.enqueueSync(source.id, reason = "manual", forcePrune = removeMissing)
     }
 
+    /**
+     * Stores a playlist's "Clean channel names" option and its own words ([customText], `;`-separated;
+     * blank = none). Names are cleaned at sync time, so the playlist re-syncs whenever the shown names
+     * would change: the option was switched, or its words changed while it is on.
+     */
+    fun saveChannelNameCleanup(source: SourceEntity, enabled: Boolean, customText: String) {
+        val strip = customText.trim().ifEmpty { null }
+        if (enabled == source.cleanChannelNames && strip == source.channelNameStrip) return
+        val namesChange = enabled || source.cleanChannelNames
+        viewModelScope.launch {
+            sourceDao.updateChannelNameCleanup(source.id, enabled, strip)
+            if (namesChange) resync(source)
+        }
+    }
+
     fun cancelResync(source: SourceEntity) {
         catalogSync.cancelSync(source.id)
     }
 
     /**
-     * Save an edited playlist and, when a section was switched on or it has never synced, fetch it.
-     *
-     * Blank fields keep what is stored, so a password field left empty on an edit does not wipe the
-     * password. A Stalker edit drops the cached portal session: the next call has to handshake again
-     * or it would keep using a token issued for the old MAC.
+     * Save an edited playlist. Blank fields keep what is stored, so a password field left empty on an
+     * edit does not wipe the password. Saving, the Stalker session drop and the decision to fetch the
+     * playlist again are core's [SourceEditor].
      */
     fun updateSource(
         id: Long,
@@ -249,18 +259,14 @@ class SettingsViewModel(
     ) {
         viewModelScope.launch {
             val existing = sourceDao.getById(id) ?: return@launch
-            if (existing.type == SourceType.STALKER) stalkerAuth.invalidate(id)
-            val scopeChanged = existing.syncLive != syncLive ||
-                existing.syncMovies != syncMovies ||
-                existing.syncSeries != syncSeries
-            val scopeTurnedOn = (!existing.syncLive && syncLive) ||
-                (!existing.syncMovies && syncMovies) ||
-                (!existing.syncSeries && syncSeries)
+            // A Stalker login is optional, so a cleared username removes it (and its password).
+            val stalker = existing.type == tv.own.owntv.core.model.SourceType.STALKER
+            val newUser = user.trim().takeIf { it.isNotBlank() } ?: existing.username.takeUnless { stalker }
             val updated = existing.copy(
                 name = name.trim().ifBlank { existing.name },
                 url = urlOrServer.trim().ifBlank { existing.url },
-                username = user.trim().takeIf { it.isNotBlank() } ?: existing.username,
-                password = pass.takeIf { it.isNotBlank() } ?: existing.password,
+                username = newUser,
+                password = if (stalker && newUser == null) null else pass.takeIf { it.isNotBlank() } ?: existing.password,
                 mac = StalkerClient.canonicalizeMac(mac) ?: existing.mac,
                 stalkerSerialNumber = stalkerSerialNumber.trim().takeIf { it.isNotBlank() },
                 stalkerDeviceId = stalkerDeviceId.trim().takeIf { it.isNotBlank() },
@@ -273,19 +279,9 @@ class SettingsViewModel(
                 syncSeries = syncSeries,
                 preferHls = preferHls,
             )
-            sourceRepository.updateSource(updated)
+            sourceEditor.save(existing, updated)
             settings.setPlaylistAutoRefresh(id, autoRefresh)
             expiryCache.remove(id)
-            if (scopeChanged) catalogSync.cancelSync(id)
-            if (scopeTurnedOn || updated.lastSyncAt == null) {
-                val counts = importFinalizer.contentCounts(id)
-                catalogSync.enqueueSync(
-                    id,
-                    reason = "scope_edit",
-                    contentTypes = SyncContentTypes.enabledFor(updated),
-                    baseItemCount = counts.channels + counts.movies + counts.series,
-                )
-            }
         }
     }
 
@@ -364,6 +360,11 @@ class SettingsViewModel(
      *
      * Stops playback first, and deliberately not gently — the user agreed to a warning that says so.
      */
+    /** Per-playlist "Ignore connection limit": Multiview and recordings stop counting the provider's limit. */
+    fun setIgnoreConnectionLimit(source: SourceEntity, ignore: Boolean) {
+        viewModelScope.launch { sourceDao.updateIgnoreConnectionLimit(source.id, ignore) }
+    }
+
     fun retestSource(source: SourceEntity) {
         measureJob?.cancel()
         measureJob = viewModelScope.launch {

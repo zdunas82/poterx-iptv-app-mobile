@@ -18,6 +18,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import kotlin.math.roundToInt
+import tv.own.owntv.core.categorylock.firstUnsealed
+import tv.own.owntv.core.categorylock.sealedCategoryIds
 import tv.own.owntv.core.ui.stage.PlaylistMark
 import tv.own.owntv.mobile.ui.stage.stageBackground
 import tv.own.owntv.mobile.cast.CastController
@@ -98,6 +100,8 @@ import tv.own.owntv.mobile.ui.screens.live.LiveTuner
 import tv.own.owntv.mobile.ui.screens.morePageTitleRes
 import tv.own.owntv.mobile.ui.screens.settings.settingsPageTitleRes
 import tv.own.owntv.mobile.ui.screens.settings.isSettingsPage
+import tv.own.owntv.mobile.ui.screens.sports.SportsPlayback
+import tv.own.owntv.mobile.ui.screens.sports.SportsTab
 
 /**
  * The frame every screen sits in (Stage): the Stage page background, the page header with the
@@ -116,6 +120,7 @@ fun MobileShell(
     navController: NavHostController = rememberNavController(),
 ) {
     val shellViewModel: ShellViewModel = koinViewModel()
+    val sportsPlayback: SportsPlayback = koinInject()
     val sections by shellViewModel.visibleSections.collectAsStateWithLifecycle()
 
     val profilesViewModel: ProfilesViewModel = koinViewModel()
@@ -294,6 +299,10 @@ fun MobileShell(
             is StartupTarget.Channel -> {
                 tuner.tune(target.id)
                 navController.navigate(PLAYER_ROUTE)
+            }
+            is StartupTarget.ChannelIn -> {
+                startupLive.requestChannel(target)
+                navController.navigateToTab(if (target.guide) MobileDestination.GUIDE else MobileDestination.LIVE)
             }
             StartupTarget.ChannelUnavailable ->
                 Toast.makeText(context, startupUnavailable, Toast.LENGTH_LONG).show()
@@ -481,7 +490,7 @@ fun MobileShell(
                 current = current,
                 compact = compactRail,
                 profile = loadedProfiles.firstOrNull { it.id == activeId },
-                onClick = { navController.onNavClick(it, current, shellViewModel) },
+                onClick = { navController.onNavClick(it, current, shellViewModel, sportsPlayback) },
                 onSearch = { navController.navigate(SEARCH_ROUTE) { launchSingleTop = true } },
                 onAvatar = { navController.navigate(MobileDestination.MORE.route) { launchSingleTop = true } },
                 modifier = Modifier.align(Alignment.CenterStart),
@@ -566,7 +575,7 @@ fun MobileShell(
                             destinations = destinations,
                             current = current,
                             labels = navLabels,
-                            onClick = { navController.onNavClick(it, current, shellViewModel) },
+                            onClick = { navController.onNavClick(it, current, shellViewModel, sportsPlayback) },
                             onLongClick = { shellViewModel.requestScrollToTop(it.route) },
                         )
                     }
@@ -659,9 +668,16 @@ fun MobileShell(
     // Programme reminders: when one comes up, ask to switch, or switch — over whatever is on screen,
     // the player included. Notify only is a notification (ReminderNotifier), so nothing is drawn here.
     val reminders: tv.own.owntv.core.reminder.ReminderManager = koinInject()
-    val dueReminders by reminders.due.collectAsStateWithLifecycle()
     val reminderMode by settings.reminderMode.collectAsStateWithLifecycle(SettingsRepository.ReminderMode.ASK)
-    val dueReminder = dueReminders.firstOrNull { it.profileId == activeId }
+    // One on a channel filed under a locked category waits: it neither asks nor switches until the PIN
+    // opens the category, so a reminder cannot show or tune what the lock keeps out of sight.
+    val lockStore: tv.own.owntv.core.customize.CustomizationStore = koinInject()
+    val reminderChannels: tv.own.owntv.core.database.dao.ChannelDao = koinInject()
+    val dueReminder = remember(activeId, reminders, lockStore, reminderChannels) {
+        reminders.due.firstUnsealed(activeId, lockStore.sealedCategoryIds(activeId, tv.own.owntv.core.model.MediaType.LIVE)) {
+            reminderChannels.getById(it)?.categoryId
+        }
+    }.collectAsStateWithLifecycle(null).value
     val reminderScope = androidx.compose.runtime.rememberCoroutineScope()
     fun answer(r: tv.own.owntv.core.database.entity.ReminderEntity, watch: Boolean) {
         reminderScope.launch {
@@ -789,6 +805,7 @@ private fun NavHostController.onNavClick(
     destination: MobileDestination,
     current: MobileDestination?,
     shell: ShellViewModel,
+    sportsPlayback: SportsPlayback,
 ) {
     when {
         // A film or a channel opened under this tab: back to the tab's own list first (only the list
@@ -800,7 +817,11 @@ private fun NavHostController.onNavClick(
         // A More or Settings page pushed on top of this tab: back down to the tab itself. Restoring the
         // tab's saved stack instead restored the very page on screen, so the tap did nothing.
         current == null && popBackStack(destination.route, inclusive = false) -> Unit
-        else -> navigateToTab(destination)
+        else -> {
+            // Sports opened from another place starts on Scores; Back from its match pages keeps the tab.
+            if (destination == MobileDestination.SPORTS) sportsPlayback.tab.value = SportsTab.SCORES
+            navigateToTab(destination)
+        }
     }
 }
 

@@ -59,6 +59,7 @@ import tv.own.owntv.mobile.ui.screens.home.durationText
 import tv.own.owntv.mobile.ui.screens.home.formatYear
 import tv.own.owntv.mobile.ui.screens.recordings.RecordingsScreen
 import tv.own.owntv.mobile.ui.screens.recordings.RecordingsViewModel
+import tv.own.owntv.mobile.ui.screens.settings.StageConfirmSheet
 import tv.own.owntv.mobile.ui.shell.PageCrumb
 import tv.own.owntv.mobile.ui.shell.ProvidePageCrumb
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
@@ -132,6 +133,8 @@ fun DownloadsScreen(
     var menuFor by remember { mutableStateOf<DownloadEntity?>(null) }
     var optionsSheet by remember { mutableStateOf(false) }
     var savingCopyOf by remember { mutableStateOf<DownloadEntity?>(null) }
+    // Delete takes the file off the device for good, so it asks first.
+    var confirmDelete by remember { mutableStateOf<DownloadEntity?>(null) }
 
     val saveCopy = rememberLauncherForActivityResult(
         ExportDocument("video/*"),
@@ -219,7 +222,7 @@ fun DownloadsScreen(
                 if (downloading.isNotEmpty()) {
                     item(key = "hdr_downloading") { StageLabel(stringResource(R.string.content_downloads_group_downloading), Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)) }
                     items(downloading, key = { it.id }) { d ->
-                        DownloadItem(d, details[d.id], active?.takeIf { it.id == d.id }, downloading, gone = d.filePath in missing, vm = vm, onMenu = { menuFor = d })
+                        DownloadItem(d, details[d.id], active?.takeIf { it.id == d.id }, downloading, gone = d.filePath in missing, vm = vm, onMenu = { menuFor = d }, onDelete = { confirmDelete = d })
                     }
                 }
                 if (onPhone.isNotEmpty()) {
@@ -230,7 +233,7 @@ fun DownloadsScreen(
                         )
                     }
                     items(onPhone, key = { it.id }) { d ->
-                        DownloadItem(d, details[d.id], null, downloading, gone = d.filePath in missing, vm = vm, onMenu = { menuFor = d })
+                        DownloadItem(d, details[d.id], null, downloading, gone = d.filePath in missing, vm = vm, onMenu = { menuFor = d }, onDelete = { confirmDelete = d })
                     }
                 }
                 item(key = "recordings") { RecordingsCard(recordings, recorded, onOpenGuide) }
@@ -249,7 +252,20 @@ fun DownloadsScreen(
                 savingCopyOf = download
                 saveCopy.launch(download.filePath?.substringAfterLast('/') ?: download.title)
             },
+            onDelete = { confirmDelete = download },
             onDismiss = { menuFor = null },
+        )
+    }
+
+    confirmDelete?.let { download ->
+        StageConfirmSheet(
+            title = stringResource(R.string.content_downloads_delete_title, details[download.id]?.title ?: download.title),
+            text = stringResource(R.string.content_downloads_delete_message),
+            confirm = stringResource(R.string.common_delete),
+            confirmIcon = MobileIcons.Delete,
+            danger = true,
+            onConfirm = { vm.delete(download) },
+            onDismiss = { confirmDelete = null },
         )
     }
 
@@ -340,6 +356,7 @@ private fun DownloadItem(
     gone: Boolean,
     vm: DownloadsViewModel,
     onMenu: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     val palette = LocalStagePalette.current
     val done = d.status == DownloadStatus.COMPLETED
@@ -382,7 +399,7 @@ private fun DownloadItem(
                             StageButton(onClick = { vm.retry(d) }, text = stringResource(R.string.common_retry), icon = MobileIcons.Refresh, small = true)
                         DownloadStatus.COMPLETED, DownloadStatus.QUEUED -> Unit
                     }
-                    StageButton(onClick = { vm.delete(d) }, text = stringResource(R.string.common_delete), icon = MobileIcons.Delete, small = true)
+                    StageButton(onClick = onDelete, text = stringResource(R.string.common_delete), icon = MobileIcons.Delete, small = true)
                 }
             }
         }
@@ -503,6 +520,7 @@ private fun DownloadMenu(
     gone: Boolean,
     vm: DownloadsViewModel,
     onSaveCopy: () -> Unit,
+    onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
@@ -528,7 +546,7 @@ private fun DownloadMenu(
                 onClick = act { vm.copyPath(path) },
             )
         }
-        StageMenuItem(stringResource(R.string.common_delete), act { vm.delete(download) }, icon = MobileIcons.Delete, danger = true)
+        StageMenuItem(stringResource(R.string.common_delete), act(onDelete), icon = MobileIcons.Delete, danger = true)
     }
 }
 

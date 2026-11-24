@@ -92,11 +92,14 @@ class SetupViewModel(
         live: SyncScopeChoice,
         movies: SyncScopeChoice,
         series: SyncScopeChoice,
+        login: String = "",
+        password: String = "",
     ) = runImport {
         importer.stalker(
             name = name, portalUrl = portalUrl, mac = mac, serialNumber = serialNumber,
             deviceId = deviceId, deviceId2 = deviceId2, signature = signature, userAgent = userAgent,
             httpReferer = httpReferer, autoRefresh = autoRefresh, live = live, movies = movies, series = series,
+            login = login, password = password,
         )
     }
 

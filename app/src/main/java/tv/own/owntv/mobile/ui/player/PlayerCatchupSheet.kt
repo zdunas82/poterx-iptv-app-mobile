@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -25,6 +26,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import tv.own.owntv.core.live.CatchupJumps
+import tv.own.owntv.core.live.CatchupProgrammeStart
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
@@ -43,6 +45,8 @@ data class CatchupOptions(
     /** How deep the provider's archive goes, so a typed time can be clamped to it. */
     val windowSec: Int,
     val onPick: (Int) -> Unit,
+    /** The programme on air, offered first as "Start of …"; asked as the sheet opens. */
+    val programmeStart: (suspend () -> CatchupProgrammeStart?)? = null,
 )
 
 /**
@@ -70,11 +74,25 @@ fun CatchupSheet(options: CatchupOptions, onDismiss: () -> Unit) {
     val zone = remember { TimeZone.getDefault() }
     val timeOnly = rememberTimeFormat("Hm")
     val withDay = rememberTimeFormat("EEEHm")
+    // Shown when the guide answers; the times below are usable meanwhile, so nothing waits for it.
+    val programmeStart by produceState<CatchupProgrammeStart?>(null) { value = options.programmeStart?.invoke() }
 
     val title = stringResource(R.string.content_catchup_jump)
     MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
         StageSheetHeader(title = title, subtitle = stringResource(R.string.content_catchup_jump_prompt))
         LazyColumn(Modifier.heightIn(max = sheetListHeight())) {
+            programmeStart?.let { start ->
+                item(key = "programme-start") {
+                    StageMenuItem(
+                        if (start.title.isEmpty()) stringResource(R.string.content_catchup_jump_programme_start_untitled)
+                        else stringResource(R.string.content_catchup_jump_programme_start, start.title),
+                        // The offset is taken at the tap, so reading the sheet does not skip the first seconds.
+                        onClick = { options.onPick(start.offsetSec(System.currentTimeMillis())); onDismiss() },
+                        icon = MobileIcons.SkipPrevious,
+                        value = stringResource(R.string.content_catchup_jump_programme_start_at, timeOnly.format(start.startMs)),
+                    )
+                }
+            }
             items(options.offsetsSec, key = { it }) { offset ->
                 val at = CatchupJumps.instantFor(offset, nowMs)
                 val format = if (CatchupJumps.crossesDay(offset, nowMs, zone)) withDay else timeOnly

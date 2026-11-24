@@ -45,7 +45,8 @@ import tv.own.owntv.mobile.ui.stage.stageText
  * The categories sheet: "Categories · Live TV", search, the fixed entries with
  * their icons — Favourites, Recently watched, Catch-up, All channels — then "GROUPS · DE" and the
  * provider groups by their parsed names, with tags, counts (Show counts) and playlist marks. The open
- * category is filled. A hold on a group opens its menu ([onHold]).
+ * category is filled. A hold on a group opens its menu ([onHold]). A locked group carries the lock, and
+ * one the PIN has not opened shows no count: how much it holds is the lock's business.
  */
 @Composable
 internal fun LiveCategoriesSheet(
@@ -105,8 +106,9 @@ internal fun LiveCategoriesSheet(
                     label = ProviderTags.groupLabel(name, country),
                     onClick = { pick(c.key) },
                     onLongClick = { onHold(c) },
+                    icon = if (c.locked) MobileIcons.Lock else null,
                     filled = c.key == selected,
-                    count = countOf(c.key),
+                    count = if (c.sealed) null else countOf(c.key),
                     tags = if (name.tags.isEmpty()) null else { { name.tags.forEach { StageTag(it) } } },
                     mark = c.sourceId?.let(marks::get),
                 )
@@ -123,8 +125,9 @@ private fun LiveCategory.icon() = when (builtIn) {
 }
 
 /**
- * Hold a category: move it through the list, hide it, or restore it to the playlist's default
- * ("Restore to default" for a combined category) — the TV's menu. Restore asks first ([CategoryRestoreConfirm]).
+ * Hold a category: move it through the list, hide it, lock it with the PIN, or restore it to the
+ * playlist's default ("Restore to default" for a combined category) — the TV's menu. Restore asks first
+ * ([CategoryRestoreConfirm]). [locked] offers Lock with PIN (false) or Remove lock (true); null neither.
  */
 @Composable
 internal fun LiveCategoryMenu(
@@ -134,7 +137,12 @@ internal fun LiveCategoryMenu(
     onHide: () -> Unit,
     onRestore: () -> Unit,
     onDismiss: () -> Unit,
+    locked: Boolean? = null,
+    onToggleLock: () -> Unit = {},
 ) {
+    // Every entry here organises the list, so each asks for the Settings PIN first when its
+    // long-press switch is on.
+    val gate: tv.own.owntv.mobile.ui.categorylock.MenuChangeGate = org.koin.compose.koinInject()
     MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
         StageSheetHeader(title = title)
         listOf(
@@ -143,12 +151,19 @@ internal fun LiveCategoryMenu(
             Triple(R.string.settings_row_menu_move_down, MobileIcons.KeyboardArrowDown, MoveKind.DOWN),
             Triple(R.string.settings_customize_move_bottom, MobileIcons.KeyboardDoubleArrowDown, MoveKind.BOTTOM),
         ).forEach { (label, icon, kind) ->
-            StageMenuItem(stringResource(label), onClick = { onDismiss(); onMove(kind) }, icon = icon)
+            StageMenuItem(stringResource(label), onClick = { onDismiss(); gate.run { onMove(kind) } }, icon = icon)
         }
-        StageMenuItem(stringResource(R.string.settings_customize_hide), onClick = { onDismiss(); onHide() }, icon = MobileIcons.VisibilityOff)
+        StageMenuItem(stringResource(R.string.settings_customize_hide), onClick = { onDismiss(); gate.run(onHide) }, icon = MobileIcons.VisibilityOff)
+        if (locked != null) {
+            StageMenuItem(
+                stringResource(if (locked) R.string.settings_customize_remove_lock else R.string.content_category_lock),
+                onClick = { onDismiss(); gate.run(onToggleLock) },
+                icon = MobileIcons.Lock,
+            )
+        }
         StageMenuItem(
             stringResource(if (custom) R.string.content_category_restore_custom else R.string.content_category_restore_playlist),
-            onClick = onRestore,
+            onClick = { gate.run(onRestore) },
             icon = MobileIcons.Refresh,
         )
     }

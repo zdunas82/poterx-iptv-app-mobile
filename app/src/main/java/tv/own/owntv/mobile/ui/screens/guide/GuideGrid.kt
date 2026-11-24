@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
+import kotlinx.coroutines.delay
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.core.epg.displayLogoUrl
@@ -234,6 +235,11 @@ private fun GuideGridRow(
     var programmes by remember(channel.id, window.start, revision) { mutableStateOf(vm.cachedRow(channel.id)) }
     LaunchedEffect(channel.id, window.start, revision) {
         if (programmes == null) programmes = vm.row(channel)
+    }
+    // A catch-up row that stays on screen asks for its past days; a row flung past does not.
+    if (channel.catchup) LaunchedEffect(channel.id) {
+        delay(ARCHIVE_ROW_VISIBLE_MS)
+        vm.requestArchiveGuide(channel)
     }
     fun x(ms: Long): Dp = minuteWidth * ((ms - window.start).toFloat() / MINUTE_MS)
 
@@ -439,6 +445,10 @@ internal fun GuideTimeline(
         val revision by vm.revision.collectAsStateWithLifecycle()
         var programmes by remember(channel.id, revision) { mutableStateOf(vm.cachedRow(channel.id)) }
         LaunchedEffect(channel.id, revision) { if (programmes == null) programmes = vm.row(channel) }
+        if (channel.catchup) LaunchedEffect(channel.id) {
+            delay(ARCHIVE_ROW_VISIBLE_MS)
+            vm.requestArchiveGuide(channel)
+        }
         val rows = programmes
         if (rows != null && rows.isEmpty()) {
             Text(
@@ -470,6 +480,9 @@ internal fun GuideTimeline(
 }
 
 private const val MINUTE_MS = 60_000L
+
+/** How long a catch-up row stays on screen before its past days are asked for. */
+private const val ARCHIVE_ROW_VISIBLE_MS = 600L
 
 /** Half an hour is the unit every guide is drawn in, so it is what the ruler counts. */
 private const val TICK_MINUTES = 30

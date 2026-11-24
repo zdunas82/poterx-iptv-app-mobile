@@ -63,7 +63,7 @@ uiautomator = "2.4.0"
 # app takes a core change, and core's release workflow opens that bump as a PR automatically. For
 # local work, owntv.corePath in ~/.gradle/gradle.properties substitutes core's source for these
 # artifacts and this number is then ignored.
-owntvCore = "1.0.69"
+owntvCore = "1.0.71"
 
 # libmpv is deliberately NOT declared here. `:player-core` exposes it as `api`, so it reaches this
 # app's compile classpath with core — which it must, because OwnTVPlayer implements

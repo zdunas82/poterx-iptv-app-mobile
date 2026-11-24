@@ -104,13 +104,35 @@ fun SettingsEpgSourcesPage(
         val syncing = vm.observeSync(source.id).collectAsStateWithLifecycle(EpgSyncState.Idle).value.isActive
         val close = { menuSource = null }
         MobileBottomSheet(onDismissRequest = close) {
-            StageSheetHeader(source.name, eyebrow = stringResource(R.string.settings_epg_sources))
+            // Where two feeds list one channel, the higher one is shown; with one feed there is nothing to rank.
+            val index = sources.indexOfFirst { it.id == source.id }
+            val ranked = sources.size > 1 && index >= 0
+            StageSheetHeader(
+                source.name,
+                eyebrow = stringResource(R.string.settings_epg_sources),
+                subtitle = if (ranked) stringResource(R.string.settings_epg_sources_priority, index + 1, sources.size) else null,
+            )
             StageMenuItem(
                 stringResource(if (syncing) R.string.settings_sources_cancel else R.string.settings_sync_now),
                 onClick = { if (syncing) vm.cancelSync(source) else vm.resync(source); close() },
                 icon = if (syncing) MobileIcons.Close else MobileIcons.Refresh,
             )
             StageMenuItem(stringResource(R.string.settings_sources_edit), onClick = { editSource = source; close() }, icon = MobileIcons.Edit)
+            // The sheet stays open, so a feed can be moved several places and its line shows where it is.
+            if (ranked) {
+                StageMenuItem(
+                    stringResource(R.string.settings_row_menu_move_up),
+                    onClick = { vm.move(source, up = true) },
+                    icon = MobileIcons.KeyboardArrowUp,
+                    enabled = index > 0,
+                )
+                StageMenuItem(
+                    stringResource(R.string.settings_row_menu_move_down),
+                    onClick = { vm.move(source, up = false) },
+                    icon = MobileIcons.KeyboardArrowDown,
+                    enabled = index < sources.lastIndex,
+                )
+            }
             StageSettingRow(
                 title = stringResource(R.string.settings_epg_sources_use_logos),
                 subtitle = stringResource(R.string.settings_epg_sources_logos_description),

@@ -122,6 +122,9 @@ fun ProfilePinSheet(
  *
  * [takenNames] are the other profiles' names, lowercased. Names have to be unique because a backup
  * merges by name, so a collision blocks the button with the reason shown under the field.
+ *
+ * [allowDownloads] non-null shows the Allow downloads switch with that value; Save hands the choice
+ * to [onAllowDownloads]. A new profile has no switch: it may download until someone edits it.
  */
 @Composable
 fun ProfileEditorSheet(
@@ -137,8 +140,11 @@ fun ProfileEditorSheet(
     customPath: String = "",
     onPickPicture: ((android.net.Uri) -> Unit)? = null,
     onClearPicture: (() -> Unit)? = null,
+    allowDownloads: Boolean? = null,
+    onAllowDownloads: (Boolean) -> Unit = {},
 ) {
     var name by remember { mutableStateOf(initial?.name.orEmpty()) }
+    var downloads by remember(allowDownloads) { mutableStateOf(allowDownloads ?: true) }
     var avatarId by remember { mutableIntStateOf(initial?.avatarId ?: -1) }
     var isKids by remember { mutableStateOf(initial?.isKids == true) }
     var pin by remember { mutableStateOf("") }
@@ -227,6 +233,14 @@ fun ProfileEditorSheet(
                 checked = isKids,
                 onToggle = { isKids = it },
             )
+            if (allowDownloads != null) {
+                SwitchRow(
+                    label = stringResource(R.string.profiles_allow_downloads),
+                    description = stringResource(R.string.profiles_allow_downloads_description),
+                    checked = downloads,
+                    onToggle = { downloads = it },
+                )
+            }
             if (initial?.pinHash != null) {
                 SwitchRow(
                     label = stringResource(R.string.profiles_remove_pin),
@@ -256,6 +270,7 @@ fun ProfileEditorSheet(
                 (removePin || pin.isEmpty() || pin.length >= PIN_MIN),
             onConfirm = {
                 autofill?.cancel()
+                if (allowDownloads != null && downloads != allowDownloads) onAllowDownloads(downloads)
                 onConfirm(name.trim(), avatarId, isKids, if (removePin) "" else pin.takeIf { it.isNotBlank() }, pendingPicture)
                 onDismiss()
             },

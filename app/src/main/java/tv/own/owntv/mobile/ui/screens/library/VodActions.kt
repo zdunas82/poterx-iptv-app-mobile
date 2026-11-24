@@ -62,7 +62,7 @@ import tv.own.owntv.mobile.ui.components.seriesDetails
 import tv.own.owntv.mobile.ui.components.sheetListHeight
 
 /** Which follow-up the sheet handed off to. Only ever one at a time. */
-private enum class VodDialog { MOVE, MOVE_TO_CATEGORY, NEW_CATEGORY, DETAILS, TMDB_NAME, SUBTITLES }
+private enum class VodDialog { MOVE, MOVE_TO_CATEGORY, NEW_CATEGORY, DETAILS, TMDB_NAME, SUBTITLES, DOWNLOAD_ALL }
 
 /** The menu's groups, in the TV's order (labels in [VodMenu]). */
 private const val GROUP_WATCH = 0
@@ -187,7 +187,8 @@ fun VodMenu(
                     group = GROUP_LIBRARY,
                     value = episodes.takeIf { it > 0 && downloadRows.isEmpty() }?.let(::formatCount),
                     onClick = downloadAction.onTap(
-                        onDownload = { vm.download(item.id) },
+                        // A show queues every episode, so it asks first with the count.
+                        onDownload = { if (movie || episodes == 0) vm.download(item.id) else dialog = VodDialog.DOWNLOAD_ALL },
                         onRetry = { vm.retryDownloads(downloadRows) },
                         onDelete = { vm.deleteDownloads(downloadRows) },
                     ),
@@ -318,7 +319,7 @@ fun VodMenu(
             title = item.name,
             openAt = item.id,
             load = { vm.moveList(selected) },
-            onSave = { ids -> vm.contextKeyOf(selected)?.let { vm.commitMove(it, ids) } },
+            onSave = { ids, moved -> vm.contextKeyOf(selected)?.let { vm.commitMove(it, ids, moved) } },
             onDismiss = { dialog = null },
         )
         VodDialog.MOVE_TO_CATEGORY -> MoveToCategorySheet(
@@ -351,6 +352,9 @@ fun VodMenu(
             onDelete = { cacheId -> vm.deleteSubtitle(cacheId) },
             onDismiss = { dialog = null },
         )
+        VodDialog.DOWNLOAD_ALL -> tv.own.owntv.mobile.ui.components.BulkDownloadConfirm(
+            tv.own.owntv.mobile.ui.components.BulkDownloadAsk(episodes) { vm.download(item.id) },
+        ) { dialog = null }
         null -> Unit
     }
 }

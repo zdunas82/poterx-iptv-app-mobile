@@ -94,7 +94,7 @@ fun AddSourceForm(
     onStartStalker: (
         name: String, portalUrl: String, mac: String, serialNumber: String, deviceId: String,
         deviceId2: String, signature: String, userAgent: String, httpReferer: String, autoRefresh: PlaylistRefresh,
-        live: SyncScopeChoice, movies: SyncScopeChoice, series: SyncScopeChoice,
+        live: SyncScopeChoice, movies: SyncScopeChoice, series: SyncScopeChoice, login: String, password: String,
     ) -> Unit,
     modifier: Modifier = Modifier,
     initial: SourceFormValues? = null,
@@ -265,6 +265,14 @@ fun AddSourceForm(
                         Text(stringResource(R.string.setup_mac_invalid), style = stageText(11.5f, 600), color = palette.danger, modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
+                // Only for portals that ask for a login on top of the MAC; most do not.
+                item(key = "portal-user") { StageTextRow(MobileIcons.Person, stringResource(R.string.settings_username_optional), username, { username = it }) }
+                item(key = "portal-pass") {
+                    StageTextRow(
+                        MobileIcons.Lock, stringResource(if (editing) R.string.setup_password_keep else R.string.settings_password_optional),
+                        password, { password = it }, password = true,
+                    )
+                }
                 item(key = "identity") { StageSectionHead(stringResource(R.string.setup_stalker_advanced_identity)) }
                 item(key = "serial") { StageTextRow(MobileIcons.Edit, stringResource(R.string.setup_stalker_serial_number_optional), serialNumber, { serialNumber = it }) }
                 item(key = "dev1") { StageTextRow(MobileIcons.Edit, stringResource(R.string.setup_stalker_device_id_optional), deviceId, { deviceId = it }) }
@@ -321,7 +329,7 @@ fun AddSourceForm(
                         SourceKind.M3U -> onStartM3u(name, m3uUrl, userAgent, httpReferer, autoRefresh)
                         SourceKind.STALKER -> onStartStalker(
                             name, portalUrl, mac, serialNumber, deviceId, deviceId2, signature,
-                            userAgent, httpReferer, autoRefresh, syncLive, syncMovies, syncSeries,
+                            userAgent, httpReferer, autoRefresh, syncLive, syncMovies, syncSeries, username, password,
                         )
                     }
                 },
