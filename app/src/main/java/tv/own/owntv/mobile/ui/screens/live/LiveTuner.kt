@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -509,6 +510,30 @@ class LiveTuner(
 
     /** The wall-clock instant actually on screen while an archive plays. */
     val watchingWallMs: StateFlow<Long?> = timeshift.watchingWallMs
+
+    /** [watchingWallMs] to the minute: it ticks every second, and the guide only changes at a programme boundary. */
+    private val watchingMinute = watchingWallMs.map { ms -> ms?.let { it / 60_000L } }.distinctUntilChanged()
+
+    /**
+     * What was on air at the instant being replayed, from the stored guide — the television's
+     * `archiveNowNext`. Null at the live edge, and where the guide knows nothing about that instant.
+     */
+    private val archiveNowNext: StateFlow<EpgNowNext?> = combine(channel, watchingMinute) { ch, minute -> ch to minute }
+        .mapLatest { (ch, minute) ->
+            if (ch == null || minute == null) null
+            else epgReader.nowNextAt(ch, minute * 60_000L, custom.value, settings.epgOffsetMinutes.first())
+        }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * The guide entry the player shows over the picture (see [playerGuideFor]).
+     *
+     * [nowNext] alone is what is on air *now*: over a programme picked in the Guide, or a rewind across
+     * a programme boundary, the card named the show on air at this moment under the archive's clock.
+     */
+    val playerGuide: StateFlow<EpgNowNext?> = combine(nowNext, archiveNowNext, watchingMinute) { onNow, replayed, minute ->
+        playerGuideFor(onNow, replayed, minute?.let { it * 60_000L })
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var loadedId: Long? = null
 

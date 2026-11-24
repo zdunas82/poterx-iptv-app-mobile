@@ -147,6 +147,8 @@ fun PlayerScreen(
     val previousChannel by tuner.previousChannel.collectAsStateWithLifecycle()
     val film by vodTuner.playing.collectAsStateWithLifecycle()
     val nowNext by tuner.nowNext.collectAsStateWithLifecycle()
+    // What the picture is showing, which behind the live edge is not what is on air now.
+    val playerGuide by tuner.playerGuide.collectAsStateWithLifecycle()
     val siblings by tuner.siblings.collectAsStateWithLifecycle()
     // Held as States, not values: both tick about once a second while an archive plays, and only
     // the dock's clock, the Now/Next card and the live bar read them — values here would recompose
@@ -726,7 +728,7 @@ fun PlayerScreen(
             isLive = isLive,
             offsetSec = offsetSecState,
             archiveWindowSec = archiveWindowSec,
-            epg = nowNext,
+            epg = playerGuide,
             watchingWallMs = watchingWallMsState,
             timelineProgrammes = timelineProgrammes,
             channelNumber = channel?.number?.takeIf { showChannelNumbers },
