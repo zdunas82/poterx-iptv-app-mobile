@@ -167,23 +167,26 @@ private fun sourcesSections(vm: SettingsViewModel): List<SettingSection> {
         SettingsRepository.CatchupTimezone.DEVICE -> stringResource(R.string.settings_catchup_timezone_device)
         SettingsRepository.CatchupTimezone.MANUAL -> utcOffsetLabel(tzOffset)
     }
+    val lockedBuild = tv.own.owntv.mobile.poterx.LockedSource.enabled
     return listOfNotNull(
         SettingSection(
             stringResource(R.string.settings_sources_title),
             listOfNotNull(
                 // Poterx: the built-in account first on a locked build; a stock build has no such row.
-                if (tv.own.owntv.mobile.poterx.LockedSource.enabled) pageItem(
+                if (lockedBuild) pageItem(
                     "tab_ACCOUNT", MobileIcons.Person, stringResource(R.string.poterx_account_title),
                     stringResource(R.string.poterx_account_description), null, SettingsLeaf.ACCOUNT.route,
                 ) else null,
+                // Poterx: on a locked build these two pages only refresh what is built in, so their rows
+                // do not promise "add or remove M3U / Xtream / Stalker" or "add XMLTV sources".
                 pageItem(
                     "tab_SOURCES", MobileIcons.Layers, stringResource(R.string.settings_playlists),
-                    stringResource(R.string.settings_line_playlists_mobile),
+                    stringResource(if (lockedBuild) R.string.poterx_sources_row_description else R.string.settings_line_playlists_mobile),
                     pluralStringResource(R.plurals.more_playlist_count, sources.size, sources.size), SettingsLeaf.PLAYLISTS.route,
                 ),
                 pageItem(
                     "tab_EPG", MobileIcons.Guide, stringResource(R.string.settings_epg_sources),
-                    stringResource(R.string.settings_epg_sources_nav_description),
+                    stringResource(if (lockedBuild) R.string.poterx_guide_row_description else R.string.settings_epg_sources_nav_description),
                     pluralStringResource(R.plurals.settings_epg_feed_count, feeds.size, feeds.size), SettingsLeaf.EPG_SOURCES.route,
                 ),
             ),

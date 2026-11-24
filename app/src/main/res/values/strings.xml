@@ -23,6 +23,7 @@
     <string name="poterx_blocked_connection">Your internet provider cuts the connection to the TV server. Mobile data or a VPN app gets around it.</string>
     <string name="poterx_blocked_page">Your internet provider serves a block page instead of the TV server. Mobile data or a VPN app gets around it.</string>
     <string name="poterx_sources_title">Channel list</string>
+    <string name="poterx_sources_row_description">Refresh the channel list</string>
     <string name="poterx_refresh_now">Refresh now</string>
     <string name="poterx_last_refresh">Last refresh: %1$s</string>
     <string name="poterx_refresh_auto">Automatic refresh</string>
@@ -31,7 +32,7 @@
     <string name="poterx_account_description">Who is signed in, subscription status, sign out</string>
     <string name="poterx_account_user_description">The account this phone is signed in with</string>
     <string name="poterx_account_status">Status</string>
-    <string name="poterx_account_status_description">As reported by your provider · OK checks again</string>
+    <string name="poterx_account_status_description">As reported by your provider · tap to check again</string>
     <string name="poterx_account_checking">Checking…</string>
     <string name="poterx_account_active">Active</string>
     <string name="poterx_account_expired">Expired</string>
@@ -75,6 +76,7 @@
     <string name="poterx_device_id_description">Give it to your provider when reporting a problem</string>
     <string name="poterx_contact_line">Contact: %1$s</string>
     <string name="poterx_guide_feed">Programme guide</string>
+    <string name="poterx_guide_row_description">Refresh the programme guide</string>
     <string name="poterx_guide_empty">The guide will be set up as soon as you sign in.</string>
     <string name="poterx_guide_refresh_description">How often the programme guide is downloaded again</string>
     <string name="poterx_guide_body">The programme guide comes with your subscription and is set up by the app. If a channel shows no programmes, refresh the guide or contact your provider.</string>

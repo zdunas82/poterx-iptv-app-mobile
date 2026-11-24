@@ -23,6 +23,7 @@
     <string name="poterx_blocked_connection">Twój operator internetu odcina połączenie z serwerem telewizji. Dane komórkowe albo aplikacja VPN omijają tę blokadę.</string>
     <string name="poterx_blocked_page">Twój operator internetu podstawia stronę blokady zamiast serwera telewizji. Dane komórkowe albo aplikacja VPN omijają tę blokadę.</string>
     <string name="poterx_sources_title">Lista kanałów</string>
+    <string name="poterx_sources_row_description">Odświeżanie listy kanałów</string>
     <string name="poterx_refresh_now">Odśwież teraz</string>
     <string name="poterx_last_refresh">Ostatnie odświeżenie: %1$s</string>
     <string name="poterx_refresh_auto">Automatyczne odświeżanie</string>
@@ -31,7 +32,7 @@
     <string name="poterx_account_description">Kto jest zalogowany, stan abonamentu, wylogowanie</string>
     <string name="poterx_account_user_description">Konto, na które zalogowany jest ten telefon</string>
     <string name="poterx_account_status">Stan</string>
-    <string name="poterx_account_status_description">Według Twojego dostawcy · OK sprawdza ponownie</string>
+    <string name="poterx_account_status_description">Według Twojego dostawcy · dotknij, aby sprawdzić ponownie</string>
     <string name="poterx_account_checking">Sprawdzanie…</string>
     <string name="poterx_account_active">Aktywne</string>
     <string name="poterx_account_expired">Wygasło</string>
@@ -75,6 +76,7 @@
     <string name="poterx_device_id_description">Podaj dostawcy przy zgłaszaniu problemu</string>
     <string name="poterx_contact_line">Kontakt: %1$s</string>
     <string name="poterx_guide_feed">Przewodnik programowy</string>
+    <string name="poterx_guide_row_description">Odświeżanie przewodnika programowego</string>
     <string name="poterx_guide_empty">Przewodnik skonfiguruje się zaraz po zalogowaniu.</string>
     <string name="poterx_guide_refresh_description">Jak często przewodnik programowy jest pobierany ponownie</string>
     <string name="poterx_guide_body">Przewodnik programowy jest częścią Twojego abonamentu i konfiguruje go aplikacja. Jeśli jakiś kanał nie ma programu, odśwież przewodnik albo skontaktuj się z dostawcą.</string>
