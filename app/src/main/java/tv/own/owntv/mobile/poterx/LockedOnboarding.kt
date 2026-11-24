@@ -217,7 +217,7 @@ fun LockedOnboarding(
                 val fresh = runCatching { sourceDao.getAllOnce().firstOrNull { it.id == share.id } }.getOrNull() ?: share
                 val updated = fresh.copy(password = typedPassword)
                 val oldUrls = epgRepository.guideUrls(fresh)
-                runCatching { sourceRepository.updateSource(updated) }
+                runCatching { sourceDao.update(updated) }
                 // The guide feed's address carries the password: the feed is repointed, so the guide keeps
                 // refreshing from the same feed instead of a dead one and a second made at the next start.
                 val newUrls = epgRepository.guideUrls(updated)

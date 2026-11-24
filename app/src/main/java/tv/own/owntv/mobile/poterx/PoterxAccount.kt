@@ -36,7 +36,7 @@ object PoterxAccount {
         val wanted = userAgent
         sourceDao.getAllOnce()
             .filter { it.type == SourceType.XTREAM && it.userAgent != wanted }
-            .forEach { sourceRepository.updateSource(it.copy(userAgent = wanted)) }
+            .forEach { sourceDao.update(it.copy(userAgent = wanted)) }
     }
 
     /**
