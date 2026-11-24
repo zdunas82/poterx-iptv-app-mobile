@@ -177,18 +177,20 @@ internal fun pictureSections(vm: SettingsViewModel): List<SettingSection> {
     val zoom = runCatching { ZoomMode.valueOf(zoomName) }.getOrDefault(ZoomMode.FIT)
     val tunneled = s.tunneledPlayback.pref(false)
     val tunnelingFailed = s.tunnelingFailed.pref(false)
-    val afr = s.autoFrameRate.pref(false)
+    val afrFilms = s.autoFrameRateFilms.pref(false)
+    val afrLive = s.autoFrameRateLive.pref(false)
     // Below Android 12 a display cannot be asked which refresh rates it reaches without blanking it, so turning
     // auto frame rate on asks first; off is immediate — the TV's rule.
-    var afrWarning by remember { mutableStateOf(false) }
-    if (afrWarning) {
+    // The switch the warning is about: true = Live TV, false = films and series, null = no warning.
+    var afrWarning by remember { mutableStateOf<Boolean?>(null) }
+    afrWarning?.let { live ->
         StageConfirmSheet(
             title = stringResource(R.string.settings_auto_frame_rate_warning_title_mobile),
             text = stringResource(R.string.settings_auto_frame_rate_warning_description_mobile, android.os.Build.VERSION.RELEASE),
             confirm = stringResource(R.string.settings_auto_frame_rate_turn_on_anyway),
             cancel = stringResource(R.string.settings_auto_frame_rate_keep_off),
-            onConfirm = { vm.edit { setAutoFrameRate(true) } },
-            onDismiss = { afrWarning = false },
+            onConfirm = { vm.edit { if (live) setAutoFrameRateLive(true) else setAutoFrameRateFilms(true) } },
+            onDismiss = { afrWarning = null },
         )
     }
     return listOf(
@@ -230,9 +232,13 @@ internal fun pictureSections(vm: SettingsViewModel): List<SettingSection> {
             stringResource(R.string.settings_vp_cat_frame_rate),
             listOf(
                 switchItem(
-                    "vp_afr", MobileIcons.Schedule, stringResource(R.string.settings_auto_frame_rate),
-                    stringResource(R.string.settings_vp_cat_frame_rate_summary), afr,
-                ) { on -> if (on && !AFR_SAFE) afrWarning = true else vm.edit { setAutoFrameRate(on) } },
+                    "vp_afr", MobileIcons.Movie, stringResource(R.string.settings_auto_frame_rate_films),
+                    stringResource(R.string.settings_vp_cat_frame_rate_summary), afrFilms,
+                ) { on -> if (on && !AFR_SAFE) afrWarning = false else vm.edit { setAutoFrameRateFilms(on) } },
+                switchItem(
+                    "vp_afr_live", MobileIcons.LiveTv, stringResource(R.string.settings_auto_frame_rate_live),
+                    stringResource(R.string.settings_vp_cat_frame_rate_summary), afrLive,
+                ) { on -> if (on && !AFR_SAFE) afrWarning = true else vm.edit { setAutoFrameRateLive(on) } },
             ),
         ),
     )

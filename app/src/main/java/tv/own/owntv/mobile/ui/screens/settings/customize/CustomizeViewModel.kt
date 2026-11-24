@@ -22,6 +22,7 @@ import tv.own.owntv.core.customize.SpanSelector
 import tv.own.owntv.core.customize.moveBlock
 import tv.own.owntv.core.customize.CustomizationStore
 import tv.own.owntv.core.customize.CustomizeKeys
+import tv.own.owntv.core.customize.placePinned
 import tv.own.owntv.core.database.dao.CategoryDao
 import tv.own.owntv.core.database.dao.ContentOrderDao
 import tv.own.owntv.core.database.dao.CustomCategoryDao
@@ -96,11 +97,15 @@ class CustomizeViewModel(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PinLock())
 
-    /** Set (or with null: remove) the PIN lock for this profile. */
+    /** Set (or with null: remove) the PIN lock for this profile. Removing it also drops every
+     *  category lock: without the PIN nothing could open them again. */
     fun setPin(pin: String?) {
         val pid = ctx.value.profileId
         if (pid < 0) return
-        viewModelScope.launch { settings.setCustomizePin(pid, pin) }
+        viewModelScope.launch {
+            if (pin == null) customize.clearCategoryLocks(pid)
+            settings.setCustomizePin(pid, pin)
+        }
     }
 
     private val _section = MutableStateFlow(MediaType.LIVE)
@@ -145,7 +150,6 @@ class CustomizeViewModel(
                     profileDao.observeById(c.profileId),
                 ) { cats, cust, sources, profile ->
                     val providerNames = sources.associate { it.id to it.name }.takeIf { sourceIds.size > 1 }
-                    val orderIndex = cust.categoryOrder.withIndex().associate { (i, k) -> k to i }
                     // Provider folders + the user's custom combined categories in ONE list, so
                     // hide/rename/reorder apply uniformly (their keys share the CustomizeKeys
                     // namespace). Custom rows carry categoryId = null and no provider name.
@@ -179,8 +183,9 @@ class CustomizeViewModel(
                             providerName = providerNames?.get(cat.sourceId),
                         )
                     }
-                    val (pinned, rest) = entries.partition { it.key in orderIndex }
-                    (pinned.sortedBy { orderIndex.getValue(it.key) } + rest)
+                    // A moved category keeps its position; the rest stay in playlist order around it.
+                    val (pinned, rest) = entries.partition { it.key in cust.categoryPositions }
+                    placePinned(rest, pinned.map { it to cust.categoryPositions.getValue(it.key) })
                         .filter { filter.accepts(it.hidden) }
                 }
             }
@@ -251,7 +256,7 @@ class CustomizeViewModel(
                     hiddenItems = it.hiddenItems.filterKeys { k -> !mine(k) },
                     categoryNames = it.categoryNames.filterKeys { k -> !mine(k) },
                     itemNames = it.itemNames.filterKeys { k -> !mine(k) },
-                    categoryOrder = it.categoryOrder.filterNot(::mine),
+                    categoryPositions = it.categoryPositions.filterKeys { k -> !mine(k) },
                     movedFromOrigin = it.movedFromOrigin.filterKeys { k -> !mine(k) },
                 )
             }
@@ -349,9 +354,10 @@ class CustomizeViewModel(
      * The block keeps its internal order; a move that would run off either end is a no-op.
      */
     private fun moveBlock(lo: Int, hi: Int, kind: MoveKind) {
-        val reordered = moveBlock(rows.value, lo, hi, kind) ?: return
+        val current = rows.value
+        val reordered = moveBlock(current, lo, hi, kind) ?: return
         viewModelScope.launch {
-            customize.setCategoryOrder(ctx.value.profileId, _section.value, reordered.map { it.key })
+            customize.saveCategoryMove(ctx.value.profileId, _section.value, reordered.map { it.key }, current.subList(lo, hi + 1).map { it.key })
         }
     }
 

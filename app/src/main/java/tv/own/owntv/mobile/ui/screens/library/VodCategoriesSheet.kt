@@ -95,8 +95,10 @@ internal fun VodCategoriesSheet(
                     label = ProviderTags.groupLabel(name, headingCountry = null),
                     onClick = { pick(c.key) },
                     onLongClick = { onHold(c) },
+                    // A locked group carries the lock; one the PIN has not opened shows no count.
+                    icon = if (c.locked) MobileIcons.Lock else null,
                     filled = c.key == selected,
-                    count = countOf(c.key),
+                    count = if (c.sealed) null else countOf(c.key),
                     tags = if (name.tags.isEmpty()) null else { { name.tags.forEach { StageTag(it) } } },
                     mark = c.sourceId?.let(marks::get),
                 )

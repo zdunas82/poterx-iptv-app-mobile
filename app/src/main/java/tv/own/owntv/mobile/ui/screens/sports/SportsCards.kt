@@ -2,12 +2,14 @@ package tv.own.owntv.mobile.ui.screens.sports
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -41,6 +43,8 @@ import tv.own.owntv.mobile.ui.stage.StageIcon
 import tv.own.owntv.mobile.ui.stage.StageMenuItem
 import tv.own.owntv.mobile.ui.stage.StageSheetHeader
 import tv.own.owntv.mobile.ui.stage.StageTag
+import tv.own.owntv.mobile.ui.stage.StageTool
+import tv.own.owntv.mobile.ui.stage.stageAccent
 import tv.own.owntv.mobile.ui.stage.stageText
 
 /** Sports whose score is a line (sets, innings), not one number a side. */
@@ -148,7 +152,10 @@ private fun FeaturedScore(m: Match, spoiler: Boolean) {
     }
 }
 
-/** Long press on a match: follow either side (or stop following), and "Remind me" for a match still to come. */
+/**
+ * Long press on a match: each side — its name opens its team page (where it has one), Follow on the right
+ * follows it or stops — and "Remind me" for a match still to come.
+ */
 @Composable
 internal fun FollowRemindSheet(
     match: Match,
@@ -156,21 +163,39 @@ internal fun FollowRemindSheet(
     channels: List<WatchOption>,
     onFollow: (FollowedTeam) -> Unit,
     onRemind: () -> Unit,
+    onOpenTeam: (TeamRef) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
+    val palette = LocalStagePalette.current
     MobileBottomSheet(onDismissRequest = onDismiss) {
-        StageSheetHeader(MatchNotifications.pair(context, match), subtitle = leagueName(match))
+        StageSheetHeader(
+            MatchNotifications.pair(context, match),
+            subtitle = leagueName(match) + stringResource(R.string.content_epg_bits_separator) + kickOffText(match.startMs),
+        )
         match.competitors.forEach { c ->
             val team = FollowedTeam(match.sport, c.team.id, c.team.name, c.team.abbreviation)
             val following = config.teams.any { it.key == team.key }
-            StageMenuItem(
-                label = c.team.name,
-                icon = MobileIcons.Star,
-                value = stringResource(if (following) R.string.sports_following else R.string.sports_follow),
-                selected = following,
-                onClick = { onFollow(team); onDismiss() },
-            )
+            val ref = teamRefOf(match, c.team)
+            Row(Modifier.fillMaxWidth().height(52.dp).padding(end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(12.dp))
+                        .then(if (ref != null) Modifier.clickable { onDismiss(); onOpenTeam(ref) } else Modifier)
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Crest(c.team, 26)
+                    Text(c.team.name, style = stageText(14.5f, 600), color = palette.item, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (ref != null) StageIcon(MobileIcons.KeyboardArrowRight, 16.dp, stageAccent.accent)
+                }
+                StageTool(
+                    onClick = { onFollow(team); onDismiss() },
+                    label = stringResource(if (following) R.string.sports_following else R.string.sports_follow),
+                    icon = if (following) MobileIcons.Star else MobileIcons.StarBorder,
+                    on = following,
+                )
+            }
         }
         // Without a found channel the phone still reminds: a notification at the lead time.
         if (match.state == MatchState.PRE && match.startMs > System.currentTimeMillis()) {

@@ -84,7 +84,9 @@ The same two engines as the television, behind the same `PlaybackEngine` interfa
 - **Protected (DRM) channels** — Widevine and ClearKey, from a licence server or ClearKey keys written
   inline in the playlist — play on ExoPlayer, which outranks every other preference. They
   **cannot be recorded** — the CDM decrypts only into a secure decoder for immediate display, so a
-  recording is refused before it starts rather than left as a file that will not play.
+  recording is refused before it starts rather than left as a file that will not play. Apple FairPlay
+  cannot play on any Android device: such a channel says so at once, and ClearKey keys a playlist files
+  under a FairPlay label play as ClearKey.
 - **Container is decided from evidence**, not from the file extension: the playlist's declared
   `manifest_type`, then what the response actually turns out to be, then what the same provider has
   already been caught serving. HLS, MPEG-DASH and raw MPEG-TS. The response sniff is the only route
@@ -133,8 +135,10 @@ than growing.
   token, so the lock screen, the notification and the media buttons are the session's own rather than
   a second copy that can disagree with it.
 - **Audio focus for a phone** — a call **pauses** the film rather than playing it quietly under the
-  caller, and unplugging headphones stops it instead of switching to the loudspeaker. Both differ
-  from the television's defaults on purpose.
+  caller, and it plays on by itself when the call ends; WhatsApp and other internet calls too (from
+  Android 12). A notification sound only turns it down for a moment. Unplugging headphones stops it
+  instead of switching to the loudspeaker. Play after a live pause of over a minute goes back to the
+  live edge rather than resuming old pictures. These differ from the television's defaults on purpose.
 - **Casting (Google Cast)** — sender-side only, and absent from the television by nature: an Android
   TV box *is* a receiver. `CastPlaybackEngine` is another `PlaybackEngine`, so the lock screen and
   notification followed it for free. A stream a receiver cannot decode gets a readable, translated
@@ -179,7 +183,8 @@ top. Predictive back is on.
   **muted preview** on top (beside the list when wide), not watched until a second tap opens it full
   screen — the television's preview. A channel on Home, in Favourites or History plays full screen;
   one from Search opens in Live TV's preview.
-- **Sports** — the television's Sports section as built: ESPN scores for followed leagues, match
+- **Sports** — the television's Sports section as built: Scores · Calendar · Leagues tabs sharing one set
+  of sport and league buttons, team pages, ESPN scores for followed leagues, match
   pages with Find channels (searched only on request), a filter sheet, Broadcasts, a Home row, the
   score and Other channels in the player, and — phone only — goal alerts and a live score card that
   work with the app closed (core's `MatchAlertHost.backgroundAllowed`).
@@ -195,7 +200,10 @@ top. Predictive back is on.
   terms and three curated chips. Results page as the list is scrolled rather than stopping at the
   shared reader's first forty of each kind. Once typing, filter chips (Live TV / TV Shows / Movies /
   Series, several at once) narrow the list. A **TV Shows** group lists stored-guide programmes whose
-  title matches, on now or in the next 12 hours; a tap opens the channel.
+  title matches, on now or in the next 12 hours; a tap opens the channel. A channel result opens
+  Live TV on that channel's own category, scrolled to it (not saved as the remembered category).
+- **Category memory** — the last Live TV / Movies / Series category is remembered per profile and
+  follows a profile switch at once; *TV Guide follows Live TV* (Browsing & lists) shares it with the Guide.
 - **More** (the avatar) — the profile and Switch, Settings, Downloads, Favourites, History, Backup,
   Local sync, the error log and About.
 
@@ -204,13 +212,15 @@ top. Predictive back is on.
 Seventy long-press handlers across twenty-one files — channels, films, shows, episodes, categories,
 downloads, recordings, guide rows, search results, playlists, EPG sources, profiles, quick toggles,
 the floating window and the navigation bar. The menus use core's own action keys and the user's saved
-order, so both apps offer the same actions in the same arrangement.
+order and hidden actions, so both apps offer the same actions in the same arrangement; a profile with
+downloads switched off has no Download anywhere, and a whole show or season asks first with the count.
 
 ---
 
 ## 4. EPG, catch-up & recording
 
-The guide, catch-up, live rewind, auto-matching, guide offsets and multiple XMLTV feeds are core's
+The guide, catch-up, live rewind, auto-matching, guide offsets and multiple XMLTV feeds (their order
+in EPG sources is the guide priority) are core's
 and behave as they do on the television — including **Pause and rewind live TV** (a channel without
 catch-up saved on the phone while watched, kept through picture-in-picture and sound-only playback).
 Mobile-specific shapes:
@@ -225,7 +235,11 @@ Mobile-specific shapes:
   because a device has very few hardware video planes and a second SurfaceView gets audio and no
   picture. Landscape puts two per row; portrait stacks them.
 - **Connection limits** — measured once at a playlist's first sync and used to refuse a tile or a
-  recording with a sentence rather than a failure.
+  recording with a sentence rather than a failure. Re-test's measurement outranks the panel's number;
+  **Ignore connection limit** (per playlist) lets Multiview and recordings try more streams.
+- **Past days in the guide** — up to a week back when there is catch-up, filled from the provider's
+  archive as rows come on screen; **Go back to…** offers **Start of “…”** first, and the player's
+  **Sources** sheet lists the other versions of the channel playing.
 
 ---
 
@@ -252,7 +266,13 @@ Mobile-specific shapes:
 ## 6. Profiles & settings
 
 Profiles with PINs, kids mode, and **a photo of the user's own** as an avatar — something the
-television has no way to offer. A profile gate that survives rotation but not process death.
+television has no way to offer. A profile gate that survives rotation but not process death. Three
+separate locks, each with its own PIN and wrong-entry limit — profile, category and a per-profile
+**Settings lock** (Settings › App; Settings, Backup & Restore, Local sync, and optionally long-press
+changes). A profile with a profile or Settings lock is **protected**: a new profile does not inherit its
+playlists, and another profile backs it up, merges or replaces it in a restore, edits or deletes it only
+after one of its PINs. Local sync is profile-based: the profile in use merges with the one in use on the
+other device.
 
 **Settings is three levels**: root → group → leaf, with a registry that drives the routes, the
 breadcrumbs, the back titles and the search index together, so a page can never be reachable by one
@@ -302,7 +322,7 @@ eye and to nothing else, so selection is announced.
 | Area | Choice |
 |---|---|
 | Language | Kotlin 2.4.20 |
-| Build | AGP 9.4.0 / Gradle 9.7.1 |
+| Build | AGP 9.4.0 / Gradle 9.8.2, JDK 25 |
 | UI | Jetpack Compose, Material 3, Compose BOM 2026.09.00, adaptive layouts |
 | Engine | `tv.own.owntv:core` + `:player-core` — Room, sync, EPG, backup, libmpv and Media3 |
 | Media | Media3 1.11.1 (the subtitle view only; the player itself is core's) |

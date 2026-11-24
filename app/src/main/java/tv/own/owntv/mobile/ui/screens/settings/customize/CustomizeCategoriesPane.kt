@@ -193,7 +193,7 @@ fun CustomizeCategoriesPane(
                 StageMenuItem(plainLabel(stringResource(R.string.settings_customize_set_pin)), onClick = { close(); editingPin = PinEdit.SET }, icon = MobileIcons.Lock)
             } else {
                 StageMenuItem(plainLabel(stringResource(R.string.settings_customize_change_pin)), onClick = { close(); editingPin = PinEdit.CHANGE }, icon = MobileIcons.Lock)
-                StageMenuItem(stringResource(R.string.settings_customize_remove_lock), onClick = { close(); editingPin = PinEdit.REMOVE }, icon = MobileIcons.Lock)
+                StageMenuItem(stringResource(R.string.settings_customize_remove_pin), onClick = { close(); editingPin = PinEdit.REMOVE }, icon = MobileIcons.Lock)
             }
             StageMenuItem(stringResource(R.string.settings_customize_restore_defaults), onClick = { close(); restoring = true }, icon = MobileIcons.Refresh)
         }
@@ -311,6 +311,7 @@ fun CustomizeCategoriesPane(
     editingPin?.let { mode ->
         PinEditFlow(
             mode = mode,
+            storedPin = pinLock.pin,
             onSetPin = vm::setPin,
             onDone = { editingPin = null },
         )

@@ -10,7 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.koin.compose.koinInject
-import tv.own.owntv.core.menu.applyMenuOrder
+import tv.own.owntv.core.menu.MenuLayout
+import tv.own.owntv.core.menu.arrange
 import tv.own.owntv.core.model.ContentMenu
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.ui.stage.StageGroupLabel
@@ -43,9 +44,11 @@ data class SheetAction(
  * The TV app draws these as a focused column in the middle of the screen; here they rise as a
  * bottom sheet, because a phone's actions belong under a thumb. What the two share is the order:
  * both read the same saved arrangement and apply it with core's rule, so a user who moved
- * "Download" to the top of the movie menu on the television finds it at the top here too.
+ * "Download" to the top of the movie menu on the television finds it at the top here too, and an
+ * action hidden there is hidden here.
  *
- * The item's picture and name are on top, each group under its label (WATCH, LIBRARY…).
+ * The item's picture and name are on top, each group under its label (WATCH, LIBRARY…) while the
+ * order is the shipped one; a rearranged menu has no runs of related actions to label.
  *
  * Tapping an action dismisses the sheet — every one of them either navigates or changes the row
  * being looked at, and a sheet left open over the result is a sheet the user has to close.
@@ -62,8 +65,10 @@ fun ContentMenuSheet(
     subtitle: String? = null,
 ) {
     val settings: SettingsRepository = koinInject()
-    val order by remember(menu) { settings.menuOrder(menu.name.lowercase()) }
-        .collectAsStateWithLifecycle(emptyList())
+    val layout by remember(menu) { settings.menuLayout(menu) }.collectAsStateWithLifecycle(MenuLayout())
+    val headings = layout.isShippedOrder(menu)
+    // The organising actions ask for the Settings PIN first when its long-press switch is on.
+    val gate: tv.own.owntv.mobile.ui.categorylock.MenuChangeGate = koinInject()
 
     MobileBottomSheet(onDismissRequest = onDismiss, title = title, modifier = modifier) {
         StageSheetHeader(title = title, subtitle = subtitle, leading = leading)
@@ -74,13 +79,13 @@ fun ContentMenuSheet(
                 .verticalScroll(rememberScrollState()),
         ) {
             var previousGroup: Int? = null
-            applyMenuOrder(actions, order) { it.key }.forEach { action ->
-                if (action.group != previousGroup) groupLabels[action.group]?.let { StageGroupLabel(it) }
+            arrange(menu, actions, layout) { it.key }.forEach { action ->
+                if (headings && action.group != previousGroup) groupLabels[action.group]?.let { StageGroupLabel(it) }
                 previousGroup = action.group
                 StageMenuItem(
                     label = action.label,
                     onClick = {
-                        action.onClick()
+                        if (action.key in tv.own.owntv.core.categorylock.GUARDED_MENU_ACTIONS) gate.run(action.onClick) else action.onClick()
                         onDismiss()
                     },
                     icon = action.icon,

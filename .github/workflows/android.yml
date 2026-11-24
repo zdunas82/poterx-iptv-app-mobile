@@ -46,7 +46,7 @@ concurrency:
 # steps once upstream ships the fork's changes.
 env:
   OWNTV_CORE_REPO: zdunas82/OwnTV_Core
-  OWNTV_CORE_REF: ab1d61543f32fe8b3c61b4948a8dffa2e1747865
+  OWNTV_CORE_REF: 244788a386473d0be42f10f137b52423044d07e6
 
 jobs:
   check:
@@ -55,11 +55,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'   # matches gradle/gradle-daemon-jvm.properties (toolchainVersion=25)
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -117,11 +117,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: '25'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3

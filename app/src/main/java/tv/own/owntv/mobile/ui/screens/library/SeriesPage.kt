@@ -93,6 +93,7 @@ import tv.own.owntv.mobile.ui.screens.home.durationText
 import tv.own.owntv.mobile.ui.screens.home.formatRating
 import tv.own.owntv.mobile.ui.screens.home.formatYear
 import tv.own.owntv.mobile.ui.shell.LocalTitleChrome
+import tv.own.owntv.mobile.ui.stage.StageTitleArt
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageButton
 import tv.own.owntv.mobile.ui.stage.StageButtonStyle
@@ -182,6 +183,9 @@ internal fun SeriesPage(
     }
     val categories by library.categories.collectAsStateWithLifecycle()
     var menuOpen by remember { mutableStateOf(false) }
+    var bulkDownload by remember { mutableStateOf<tv.own.owntv.mobile.ui.components.BulkDownloadAsk?>(null) }
+    val downloadsAllowed by org.koin.compose.koinInject<tv.own.owntv.core.settings.SettingsRepository>().activeDownloadsAllowed
+        .collectAsStateWithLifecycle(true)
     var orderOpen by remember { mutableStateOf(false) }
     var optionsFor by remember { mutableStateOf<EpisodeEntity?>(null) }
     val resumeGate = rememberResumeGate()
@@ -216,8 +220,13 @@ internal fun SeriesPage(
         episodeProgress[ep.id]?.takeIf { it.positionMs > 0 && it.durationMs > 0 && ep.id !in completedIds }
             ?.let { ((it.durationMs - it.positionMs) / 1000).coerceAtLeast(60) }
     }
+    // Without the provider's length, the one playback learned. "Mark as watched" replaces that progress with a
+    // 1 ms marker, which read as "0 min", so the marker is skipped and the learned length kept while open.
+    val learnedSecs = remember(series.id) { HashMap<Long, Long>() }
     val durationSecs: (EpisodeEntity) -> Long? = { ep ->
-        ep.durationSecs?.takeIf { it > 0 }?.toLong() ?: episodeProgress[ep.id]?.durationMs?.takeIf { it > 0 }?.let { it / 1000 }
+        ep.durationSecs?.takeIf { it > 0 }?.toLong()
+            ?: episodeProgress[ep.id]?.durationMs?.takeIf { it >= 60_000 }?.let { it / 1000 }?.also { learnedSecs[ep.id] = it }
+            ?: learnedSecs[ep.id]
     }
     val progressOf: (EpisodeEntity) -> Float? = { ep ->
         episodeProgress[ep.id]?.takeIf { it.positionMs > 0 && it.durationMs > 1 && ep.id !in completedIds }
@@ -269,9 +278,12 @@ internal fun SeriesPage(
                     val seasonRows = remember(seriesDownloads, seasonIds) { seriesDownloads.filter { it.itemId in seasonIds } }
                     val download = downloadActionFor(seasonRows)
                     val downloadLabel = download.label(stringResource(R.string.content_download_season))
-                    StageButton(
+                    if (downloadsAllowed) StageButton(
                         onClick = download.onTap(
-                            onDownload = { activeSeason?.let(vm::downloadSeason) },
+                            // The whole season at once, so it asks first with the count.
+                            onDownload = {
+                                activeSeason?.let { s -> vm.countSeasonEpisodes(s) { n -> bulkDownload = tv.own.owntv.mobile.ui.components.BulkDownloadAsk(n) { vm.downloadSeason(s) } } }
+                            },
                             onRetry = { vm.retryDownloads(seasonRows) },
                             onDelete = { vm.deleteDownloads(seasonRows) },
                         ),
@@ -354,6 +366,7 @@ internal fun SeriesPage(
         item(key = "bottom") { Spacer(Modifier.height(22.dp)) }
     }
 
+    bulkDownload?.let { tv.own.owntv.mobile.ui.components.BulkDownloadConfirm(it) { bulkDownload = null } }
     if (menuOpen) {
         VodMenu(
             item = VodItem(
@@ -420,14 +433,26 @@ private fun SeriesHeader(series: SeriesEntity, page: DetailViewModel.TitlePage, 
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )
-    Text(
-        HeadlineTitle.of(series.name),
-        style = stageText(36f, 800, (-1f / 36f).em, lineHeight = 1.02f),
-        color = palette.text,
-        maxLines = 3,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(top = 6.dp),
-    )
+    // The show's title art where it has one, as on the movie page; the name when it has none or it fails.
+    var logoFailed by remember(meta?.logoPath) { mutableStateOf(false) }
+    val logo = MetadataImages.logo(meta?.logoPath)?.takeIf { !logoFailed }
+    if (logo != null) {
+        StageTitleArt(
+            url = logo,
+            contentDescription = series.name,
+            onFailed = { logoFailed = true },
+            modifier = Modifier.padding(top = 6.dp).fillMaxWidth(0.85f).height(84.dp),
+        )
+    } else {
+        Text(
+            HeadlineTitle.of(series.name),
+            style = stageText(36f, 800, (-1f / 36f).em, lineHeight = 1.02f),
+            color = palette.text,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
     // Specials are not counted as a season, as on Home and the TV.
     val numbered = seasons.count { it > 0 }
     Box(Modifier.padding(top = 8.dp)) {

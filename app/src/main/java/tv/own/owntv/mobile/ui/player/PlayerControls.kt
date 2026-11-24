@@ -13,10 +13,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +39,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +61,7 @@ import tv.own.owntv.player.LiveProgramme
 import tv.own.owntv.player.PlaybackEngine
 import tv.own.owntv.player.OwnTVPlayer
 import tv.own.owntv.player.SleepTimer
+import tv.own.owntv.player.isUltraHd
 import org.koin.compose.koinInject
 import java.text.NumberFormat
 
@@ -156,6 +163,8 @@ fun PlayerControls(
     matchLine: (@Composable () -> Unit)? = null,
     /** Sports Hub: the other channels showing that match; null hides the button. */
     onOtherChannels: (() -> Unit)? = null,
+    /** Live only: the channel's other versions (Sources); null hides the button. */
+    onSources: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Derived, so the ticking archive state above moves only its readers: the edge is crossed
@@ -187,6 +196,7 @@ fun PlayerControls(
                         subtitle = subtitle,
                         logoUrl = logoUrl,
                         channelNumber = channelNumber,
+                        isLive = isLive,
                         showClock = showClock,
                         watchingWallMs = watchingWallMs,
                         onBack = onBack,
@@ -255,6 +265,7 @@ fun PlayerControls(
                         liveOnExo = liveOnExo,
                         onToggleLiveEngine = onToggleLiveEngine,
                         onOtherChannels = onOtherChannels,
+                        onSources = onSources,
                     )
                 }
             }
@@ -269,6 +280,7 @@ private fun TopRow(
     subtitle: String?,
     logoUrl: String?,
     channelNumber: Int?,
+    isLive: Boolean,
     showClock: Boolean,
     watchingWallMs: State<Long?>,
     onBack: () -> Unit,
@@ -276,29 +288,52 @@ private fun TopRow(
 ) {
     val engine by player.engineChip.collectAsStateWithLifecycle()
     val resolution by player.videoRes.collectAsStateWithLifecycle()
+    val meta by player.currentMeta.collectAsStateWithLifecycle()
+    // Films and series: the title art in place of the name, once it has arrived and loaded. Drawn as it
+    // is — this bar is always over the picture, so white lettering always shows.
+    val titleArt = meta.titleLogoUrl.takeUnless { isLive }
+    var titleArtFailed by remember(titleArt) { mutableStateOf(false) }
+    val ultraHdBadge = !isLive && isUltraHd(resolution)
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(MobileIcons.ArrowBack, stringResource(R.string.common_back), tint = Color.White)
         }
         ChannelLogo(logoUrl = logoUrl, title = title, number = channelNumber)
         Column(Modifier.weight(1f).padding(start = MobileDimens.GapSmall)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            val detail = listOfNotNull(subtitle, engine, resolution)
-                .joinToString(stringResource(R.string.player_metadata_separator))
-            if (detail.isNotEmpty()) {
+            if (titleArt != null && !titleArtFailed) {
+                AsyncImage(
+                    model = titleArt,
+                    contentDescription = title,
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.CenterStart,
+                    onState = { if (it is AsyncImagePainter.State.Error) titleArtFailed = true },
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                )
+            } else {
                 Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = OnVideo,
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+            // 4K stands in its badge rather than in the line.
+            val detail = listOfNotNull(subtitle, engine, resolution.takeUnless { ultraHdBadge })
+                .joinToString(stringResource(R.string.player_metadata_separator))
+            if (detail.isNotEmpty() || ultraHdBadge) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (ultraHdBadge) resolution?.let { UltraHdBadge(it) }
+                    if (detail.isNotEmpty()) {
+                        Text(
+                            text = detail,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnVideo,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
             matchLine?.invoke()
         }
@@ -313,6 +348,22 @@ private fun TopRow(
         // and the reason the bar does not carry a permanently dead button.
         CastRouteButton(light = true)
     }
+}
+
+/** The 4K badge of a film or episode: the engine's own resolution label, on gold. */
+@Composable
+private fun UltraHdBadge(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.ExtraBold,
+        color = Color(0xFF1A1300),
+        modifier = Modifier
+            .padding(end = MobileDimens.GapTiny)
+            .clip(RoundedCornerShape(4.dp))
+            .background(Color(0xFFE2B23C))
+            .padding(horizontal = 5.dp),
+    )
 }
 
 @Composable
@@ -518,6 +569,7 @@ private fun ToolBar(
     liveOnExo: Boolean = false,
     onToggleLiveEngine: (() -> Unit)? = null,
     onOtherChannels: (() -> Unit)? = null,
+    onSources: (() -> Unit)? = null,
     sleepTimer: SleepTimer = koinInject(),
 ) {
     val speed by engine.speed.collectAsStateWithLifecycle()
@@ -602,6 +654,10 @@ private fun ToolBar(
                 CtrlButton(MobileIcons.Sports, stringResource(R.string.sports_other_channels), onOtherChannels)
             }
             PlayerControl.MATCH -> Unit
+            // The same channel in another quality, category or playlist; the list is read when it opens.
+            PlayerControl.SOURCES -> if (onSources != null) {
+                CtrlButton(MobileIcons.PlaylistPlay, stringResource(R.string.player_tool_sources), onSources)
+            }
             // Live has two engines now, so the button is real there too. It is NOT the VOD
             // toggle: on live it is the television's "compatibility mode", pinned per channel, so a
             // channel only mpv can play opens on mpv next time without being asked again. Null means

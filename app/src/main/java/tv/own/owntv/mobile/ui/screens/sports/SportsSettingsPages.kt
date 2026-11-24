@@ -32,6 +32,7 @@ import tv.own.owntv.core.sports.SportsConfig
 import tv.own.owntv.core.sports.SportsRefreshPolicy
 import tv.own.owntv.core.sports.model.League
 import tv.own.owntv.core.sports.model.Sport
+import tv.own.owntv.mobile.ui.nav.sportsTeamRoute
 import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
@@ -52,6 +53,7 @@ import tv.own.owntv.mobile.ui.stage.StageSettingRow
 import tv.own.owntv.mobile.ui.stage.StageSheetHeader
 import tv.own.owntv.mobile.ui.stage.StageStepper
 import tv.own.owntv.mobile.ui.stage.StageSwitch
+import tv.own.owntv.mobile.ui.stage.StageTool
 
 /** Commentary languages offered (ISO 639-1): the ones provider prefixes and names carry — the TV's list. */
 private val LANGUAGES = listOf("DE", "EN", "FR", "ES", "IT", "TR", "AR", "PT", "NL", "PL", "RU", "EL", "RO", "SV", "NO", "DA", "FI", "HU", "CS", "UR", "HI", "BN")
@@ -171,6 +173,18 @@ fun SportsSettingsPage(vm: SportsSettingsViewModel = koinViewModel()) {
                 val modes = AutoRebuild.entries
                 StageSettingRow(stringResource(R.string.sports_auto_rebuild), icon = MobileIcons.History, subtitle = stringResource(R.string.sports_auto_rebuild_description)) {
                     StageStepper(rebuildLabel(c.autoRebuild), { vm.update { it.copy(autoRebuild = modes.step(it.autoRebuild, -1)) } }, { vm.update { it.copy(autoRebuild = modes.step(it.autoRebuild, 1)) } })
+                }
+                // How often saved months of this season and later are fetched again; past months never are.
+                val days = SportsConfig.CALENDAR_REFRESH_CHOICES
+                StageSettingRow(
+                    stringResource(R.string.sports_calendar_refresh), icon = MobileIcons.CalendarMonth,
+                    subtitle = stringResource(R.string.sports_calendar_refresh_description),
+                ) {
+                    StageStepper(
+                        pluralStringResource(R.plurals.sports_calendar_refresh_days, c.calendarRefreshDays, c.calendarRefreshDays),
+                        { vm.update { it.copy(calendarRefreshDays = days.step(it.calendarRefreshDays, -1)) } },
+                        { vm.update { it.copy(calendarRefreshDays = days.step(it.calendarRefreshDays, 1)) } },
+                    )
                 }
                 val refresh = SportsRefreshPolicy.LIVE_SECONDS_CHOICES
                 StageSettingRow(stringResource(R.string.sports_live_refresh), icon = MobileIcons.Sync, subtitle = stringResource(R.string.sports_live_refresh_description)) {
@@ -347,16 +361,20 @@ fun SportsLeaguesPage(vm: SportsSettingsViewModel = koinViewModel()) {
             title = m.title,
             openAt = m.start.toLong(),
             load = { m.names.mapIndexed { i, n -> ReorderItem(i.toLong(), n) } },
-            onSave = { ids -> reorderPending = true; m.commit(ids.map { it.toInt() }); moving = null },
+            onSave = { ids, _ -> reorderPending = true; m.commit(ids.map { it.toInt() }); moving = null },
             onDismiss = { moving = null },
         )
     }
 }
 
-/** My teams: a search over the followed leagues' teams, the followed ones (tap stops following), and suggestions. */
+/**
+ * My teams: a search over the followed leagues' teams, the followed ones (a tap opens the team's page,
+ * Following stops following; a side with no page is a switch), and suggestions.
+ */
 @Composable
 fun SportsTeamsPage(vm: SportsSettingsViewModel = koinViewModel()) {
     val c by vm.config.collectAsStateWithLifecycle()
+    val nav = LocalSettingsNav.current
     var query by rememberSaveable { mutableStateOf("") }
     val found by produceState(emptyList<FollowedTeam>(), query) { value = vm.searchTeams(query) }
     val suggestions = vm.suggestions(c)
@@ -373,7 +391,14 @@ fun SportsTeamsPage(vm: SportsSettingsViewModel = koinViewModel()) {
             item(key = "mine") { StageSectionHead(stringResource(R.string.sports_my_teams), count = c.teams.size) }
             c.teams.forEach { t ->
                 item(key = "m-" + t.key) {
-                    StageSettingRow(t.name, icon = MobileIcons.Star, subtitle = sportLabel(t.sport), onClick = { vm.toggleTeam(t) }) { StageSwitch(true) }
+                    val ref = remember(t, c) { vm.teamRefFor(t) }
+                    if (ref == null) {
+                        StageSettingRow(t.name, icon = MobileIcons.Star, subtitle = sportLabel(t.sport), onClick = { vm.toggleTeam(t) }) { StageSwitch(true) }
+                    } else {
+                        StageSettingRow(t.name, icon = MobileIcons.Star, subtitle = sportLabel(t.sport), onClick = { nav(sportsTeamRoute(ref)) }) {
+                            StageTool(onClick = { vm.toggleTeam(t) }, label = stringResource(R.string.sports_following), icon = MobileIcons.Star, on = true)
+                        }
+                    }
                 }
             }
         }

@@ -195,6 +195,8 @@ private val LEAF_ROWS: List<Pair<SettingsLeaf, Int>> = listOf(
     SettingsLeaf.ACCOUNT to R.string.poterx_account_status,
     SettingsLeaf.ACCOUNT to R.string.poterx_test_channel,
     SettingsLeaf.ACCOUNT to R.string.poterx_sign_out,
+    // Set per playlist, in its Names sheet: the hit opens the list of playlists to pick one from.
+    SettingsLeaf.PLAYLISTS to R.string.settings_sources_clean_names_toggle,
     SettingsLeaf.EPG_SOURCES to R.string.settings_epg_sources_auto_refresh_title,
     SettingsLeaf.EPG_SOURCES to R.string.settings_epg_sources_use_logos,
     SettingsLeaf.FONTS to R.string.settings_font_size,
@@ -216,6 +218,7 @@ private val LEAF_ROWS: List<Pair<SettingsLeaf, Int>> = listOf(
     SettingsLeaf.HOME to R.string.settings_movies_keep_watching,
     SettingsLeaf.HOME to R.string.settings_series_keep_watching,
     SettingsLeaf.BROWSING to R.string.settings_browsing_last_category,
+    SettingsLeaf.BROWSING to R.string.settings_guide_follows_live,
     SettingsLeaf.BROWSING to R.string.settings_browsing_last_item,
     SettingsLeaf.METADATA to R.string.settings_metadata_source,
     SettingsLeaf.METADATA to R.string.settings_metadata_language,

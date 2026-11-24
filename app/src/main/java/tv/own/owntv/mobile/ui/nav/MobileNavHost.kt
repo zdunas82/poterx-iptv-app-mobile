@@ -37,10 +37,11 @@ import tv.own.owntv.mobile.ui.screens.library.LibraryScreen
 import tv.own.owntv.mobile.ui.screens.library.LibraryTab
 import tv.own.owntv.mobile.ui.screens.live.LiveScreen
 import tv.own.owntv.mobile.ui.screens.search.SearchScreen
-import tv.own.owntv.mobile.ui.screens.sports.SportsLeagueScreen
 import tv.own.owntv.mobile.ui.screens.sports.SportsMatchScreen
 import tv.own.owntv.mobile.ui.screens.sports.SportsPlayback
 import tv.own.owntv.mobile.ui.screens.sports.SportsScreen
+import tv.own.owntv.mobile.ui.screens.sports.SportsTeamScreen
+import tv.own.owntv.mobile.ui.screens.sports.TeamRef
 import tv.own.owntv.mobile.ui.screens.settings.SettingsGroup
 import tv.own.owntv.mobile.ui.screens.settings.SettingsGroupScreen
 import tv.own.owntv.mobile.ui.screens.settings.LocalSettingsNav
@@ -79,6 +80,22 @@ fun MobileNavHost(
     val previewOn by koinInject<SettingsRepository>().livePreviewEnabled.collectAsStateWithLifecycle(true)
     // A goal alert, reminder or live score card was tapped: open that match (MainActivity reads the extra).
     val sportsPlayback: SportsPlayback = koinInject()
+    // The Settings PIN asks once per visit: a route outside the guarded pages ends the visit.
+    // A relock stopped what the player showed: its page closes rather than staying up empty.
+    val sealedHost: tv.own.owntv.mobile.ui.categorylock.SealedPlaybackHost = koinInject()
+    androidx.compose.runtime.LaunchedEffect(navController, sealedHost) {
+        sealedHost.stopped.collect {
+            if (navController.currentDestination?.route == PLAYER_ROUTE) navController.popBackStack()
+        }
+    }
+    val pinSession: tv.own.owntv.mobile.ui.categorylock.SettingsPinSession = koinInject()
+    androidx.compose.runtime.LaunchedEffect(navController, pinSession) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            if (!isPinGuardedRoute(entry.destination.route)) pinSession.end()
+        }
+    }
+    // Cancel on the PIN: back where the user came from, or Home when Settings was opened as a tab.
+    val leaveGuarded: () -> Unit = { if (!navController.popBackStack()) navController.navigateToTab(MobileDestination.HOME) }
     androidx.compose.runtime.LaunchedEffect(sportsPlayback) {
         sportsPlayback.openMatchKey.collect { key ->
             if (key == null) return@collect
@@ -127,7 +144,7 @@ fun MobileNavHost(
                         },
                         onPlayerOpened = { navController.navigate(PLAYER_ROUTE) },
                         onOpenSearch = { query -> navController.navigate(searchRoute(query)) },
-                        onOpenMatch = { navController.navigate(sportsMatchRoute(it.key)) },
+                        onOpenMatch = { sportsPlayback.opening = it; navController.navigate(sportsMatchRoute(it.key)) },
                     )
                     MobileDestination.GUIDE -> GuideScreen(
                         scrollToTop = scrollToTop,
@@ -145,7 +162,8 @@ fun MobileNavHost(
                     MobileDestination.SPORTS -> SportsScreen(
                         scrollToTop = scrollToTop,
                         route = destination.route,
-                        onOpenMatch = { navController.navigate(sportsMatchRoute(it.key)) },
+                        onOpenMatch = { sportsPlayback.opening = it; navController.navigate(sportsMatchRoute(it.key)) },
+                        onOpenTeam = { navController.navigate(sportsTeamRoute(it)) },
                         onPlayChannel = playChannel,
                         onChooseSports = { navController.navigate(SettingsLeaf.SPORTS_LEAGUES.route) },
                     )
@@ -159,7 +177,9 @@ fun MobileNavHost(
                             },
                             onPlay = { navController.navigate(PLAYER_ROUTE) },
                         )
-                    MobileDestination.SETTINGS -> SettingsScreen(onOpenRoute = { navController.navigate(it) })
+                    MobileDestination.SETTINGS -> tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
+                        SettingsScreen(onOpenRoute = { navController.navigate(it) })
+                    }
                 }
                 }
             }
@@ -187,34 +207,73 @@ fun MobileNavHost(
                 }
             }
         }
-        // Sports Hub: a match and a league, pushed over the hub, so Back from the player lands on the match.
+        // A league opens in the Sports page's Leagues tab: back down to the page when it is under this one,
+        // else to the Sports tab itself.
+        val openLeague = { key: String ->
+            sportsPlayback.chooseLeague(key)
+            if (!navController.popBackStack(MobileDestination.SPORTS.route, inclusive = false)) navController.navigateToTab(MobileDestination.SPORTS)
+        }
+        // Sports: a match and a team, pushed over the page, so Back from the player lands on the match.
         page(SPORTS_MATCH_PATTERN, arguments = listOf(navArgument(ARG_KEY) { type = NavType.StringType })) { entry ->
             SportsMatchScreen(
                 matchKey = entry.arguments?.getString(ARG_KEY).orEmpty(),
                 onPlayChannel = playChannel,
-                onOpenLeague = { navController.navigate("$SPORTS_LEAGUE/${Uri.encode(it)}") },
+                onOpenLeague = openLeague,
+                onOpenTeam = { navController.navigate(sportsTeamRoute(it)) },
                 onAddPlaylist = { navController.navigate(setupRoute(SetupEntry.ADD_CONTENT)) },
             )
         }
-        page("$SPORTS_LEAGUE/{$ARG_KEY}", arguments = listOf(navArgument(ARG_KEY) { type = NavType.StringType })) { entry ->
-            SportsLeagueScreen(
-                leagueKey = entry.arguments?.getString(ARG_KEY).orEmpty(),
-                onOpenMatch = { navController.navigate(sportsMatchRoute(it.key)) },
+        page(
+            SPORTS_TEAM_PATTERN,
+            arguments = listOf(ARG_LEAGUE, ARG_KEY, ARG_NAME, ARG_ABBR, ARG_LOGO).map { a ->
+                navArgument(a) { type = NavType.StringType; defaultValue = "" }
+            },
+        ) { entry ->
+            val args = entry.arguments
+            val league = tv.own.owntv.core.sports.SportsCatalog.league(args?.getString(ARG_LEAGUE).orEmpty()) ?: return@page
+            val team = tv.own.owntv.core.sports.model.Team(
+                id = args?.getString(ARG_KEY).orEmpty(),
+                name = args?.getString(ARG_NAME).orEmpty(),
+                abbreviation = args?.getString(ARG_ABBR).orEmpty(),
+                logoUrl = args?.getString(ARG_LOGO)?.ifBlank { null },
+            )
+            SportsTeamScreen(
+                ref = TeamRef(league, team),
+                onOpenMatch = { sportsPlayback.opening = it; navController.navigate(sportsMatchRoute(it.key)) },
+                onOpenTeam = { navController.navigate(sportsTeamRoute(it)) },
+                onOpenLeague = openLeague,
             )
         }
         page(
             route = SEARCH_ROUTE_PATTERN,
             arguments = listOf(navArgument(ARG_QUERY) { type = NavType.StringType; defaultValue = "" }),
         ) { entry ->
+            // Live TV is the tab a channel from Search opens under. Not a plain navigateToTab: that
+            // saves the Live tab's stack and restores it, so a Search opened from Live TV (or saved
+            // there earlier) came straight back on top and the tap seemed to do nothing. Opened from
+            // Live TV, close Search; otherwise drop Live TV's saved pages before switching to it.
+            val openLiveTab: () -> Unit = {
+                if (!navController.popBackStack(MobileDestination.LIVE.route, inclusive = false)) {
+                    navController.clearBackStack(MobileDestination.LIVE.route)
+                    navController.navigateToTab(MobileDestination.LIVE)
+                }
+            }
+            val startupLive: tv.own.owntv.mobile.ui.shell.StartupLiveSelection = koinInject()
             SearchScreen(
                 initialQuery = entry.arguments?.getString(ARG_QUERY).orEmpty(),
                 // Search goes to the channel (TV): Live TV, with it in the preview on top — or full
-                // screen when Live preview is off, as a tap in Live TV does then.
+                // screen when Live preview is off, as a tap in Live TV does then. Either way Live TV
+                // opens on that channel's own category, so Back from the player lands on the folder
+                // the channel lives in, not on the one that was open before the search.
                 onOpenChannel = { channelId ->
+                    startupLive.requestReveal(channelId) // taken by the Live TV tab, once
                     if (previewOn) {
                         tuner.preview(channelId)
-                        navController.navigateToTab(MobileDestination.LIVE)
+                        openLiveTab()
                     } else {
+                        // Full screen over Live TV rather than over the results: Back then returns to
+                        // the channel's category, as it does for a channel picked in the list.
+                        openLiveTab()
                         playChannel(channelId)
                     }
                 },
@@ -231,13 +290,17 @@ fun MobileNavHost(
         val openRoute: (String) -> Unit = { navController.navigate(it) { launchSingleTop = true } }
         SettingsGroup.entries.forEach { group ->
             page(group.route) {
-                CompositionLocalProvider(LocalSettingsNav provides openRoute) { SettingsGroupScreen(group) }
+                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
+                    CompositionLocalProvider(LocalSettingsNav provides openRoute) { SettingsGroupScreen(group) }
+                }
             }
         }
         SettingsLeaf.entries.forEach { leaf ->
             page(leaf.route) {
-                CompositionLocalProvider(LocalSettingsNav provides openRoute) {
-                    SettingsLeafPage(leaf, onSetup = { navController.navigate(setupRoute(it)) })
+                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded) {
+                    CompositionLocalProvider(LocalSettingsNav provides openRoute) {
+                        SettingsLeafPage(leaf, onSetup = { navController.navigate(setupRoute(it)) })
+                    }
                 }
             }
         }
@@ -245,18 +308,21 @@ fun MobileNavHost(
         // left, so nothing under `settings/` can reach them and the settings search cannot see them.
         MoreLeaf.entries.forEach { leaf ->
             page(leaf.route) {
-                CompositionLocalProvider(LocalNavAnimatedScope provides this) {
-                    MoreLeafPage(
-                        leaf = leaf,
-                        // A channel or a title opened from Favourites lands on the screen it has
-                        // under its own tab — the same convention the Guide uses for its channels.
-                        onOpenChannel = { channelId, _ -> playChannel(channelId) },
-                        onOpenItem = { tab, id ->
-                            navController.navigate(detailRoute(tab.parent.route, tab, id))
-                        },
-                        onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
-                        onOpenLanguage = { navController.navigate(tv.own.owntv.mobile.ui.screens.settings.SettingsLeaf.LANGUAGE.route) },
-                    )
+                // Backup & Restore and Local sync can restore or copy settings: the Settings PIN guards them too.
+                tv.own.owntv.mobile.ui.categorylock.SettingsPinGate(leaveGuarded, enabled = leaf in PIN_GUARDED_MORE) {
+                    CompositionLocalProvider(LocalNavAnimatedScope provides this) {
+                        MoreLeafPage(
+                            leaf = leaf,
+                            // A channel or a title opened from Favourites lands on the screen it has
+                            // under its own tab — the same convention the Guide uses for its channels.
+                            onOpenChannel = { channelId, _ -> playChannel(channelId) },
+                            onOpenItem = { tab, id ->
+                                navController.navigate(detailRoute(tab.parent.route, tab, id))
+                            },
+                            onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
+                            onOpenLanguage = { navController.navigate(tv.own.owntv.mobile.ui.screens.settings.SettingsLeaf.LANGUAGE.route) },
+                        )
+                    }
                 }
             }
         }
@@ -298,6 +364,16 @@ private fun NavGraphBuilder.page(
 }
 
 /** The tabs a film or a show can be opened from, and therefore returned to. */
+/** The More pages that can restore or copy settings, guarded by the Settings PIN like Settings itself. */
+private val PIN_GUARDED_MORE = setOf(MoreLeaf.BACKUP, MoreLeaf.LOCAL_SYNC)
+
+/** Settings, every page under it, and [PIN_GUARDED_MORE]: one visit of the Settings PIN. */
+private fun isPinGuardedRoute(route: String?): Boolean =
+    route != null && (
+        route == MobileDestination.SETTINGS.route || route.startsWith("${MobileDestination.SETTINGS.route}/") ||
+            PIN_GUARDED_MORE.any { it.route == route }
+        )
+
 private val LIBRARY_PARENTS = listOf(
     MobileDestination.MOVIES,
     MobileDestination.SERIES,
@@ -326,12 +402,22 @@ private const val ARG_TAB = "tab"
 private const val ARG_ITEM_ID = "itemId"
 
 private const val ARG_KEY = "key"
+private const val ARG_LEAGUE = "league"
+private const val ARG_NAME = "name"
+private const val ARG_ABBR = "abbr"
+private const val ARG_LOGO = "logo"
 private const val SPORTS_MATCH = "sports/match"
-private const val SPORTS_LEAGUE = "sports/league"
+private const val SPORTS_TEAM = "sports/team"
 private const val SPORTS_MATCH_PATTERN = "$SPORTS_MATCH/{$ARG_KEY}"
+private const val SPORTS_TEAM_PATTERN = "$SPORTS_TEAM/{$ARG_LEAGUE}/{$ARG_KEY}?$ARG_NAME={$ARG_NAME}&$ARG_ABBR={$ARG_ABBR}&$ARG_LOGO={$ARG_LOGO}"
 
 /** A match's page; its key carries slashes ("soccer/ger.1/…"), so it is encoded. */
 fun sportsMatchRoute(key: String): String = "$SPORTS_MATCH/${Uri.encode(key)}"
+
+/** A team's page: the league it is fetched in, its ESPN id, and what the header shows of it. */
+fun sportsTeamRoute(ref: TeamRef): String =
+    "$SPORTS_TEAM/${Uri.encode(ref.league.key)}/${Uri.encode(ref.team.id)}" +
+        "?$ARG_NAME=${Uri.encode(ref.team.name)}&$ARG_ABBR=${Uri.encode(ref.team.abbreviation)}&$ARG_LOGO=${Uri.encode(ref.team.logoUrl.orEmpty())}"
 
 /**
  * The full screen player. A route of its own, outside the tabs, because it is the one destination

@@ -7,6 +7,81 @@
 > Issue numbers that are part of a title are fine; explanatory parentheticals are not. The detail —
 > what, why, files and verification — belongs in the commit message, never here.
 
+## v1.1.2 — 2026-11-09
+
+### New features
+- **✨ Clean channel names: a Names option on each playlist**
+- **📋 EPG sources: Move up / Move down set the guide priority**
+- **🚀 Start on the last channel in the TV Guide or Live TV**
+- **🔒 Lock a category with its own category lock PIN**
+- **🔐 Settings › App › Settings lock: a PIN of its own per profile, optionally for long-press changes too**
+- **🛡️ Protected profiles: new profiles, backups, restores and profile edits respect profile and Settings locks**
+- **🔀 Restore: a profile with the same name asks Merge, Replace or Keep both**
+- **👤 Local sync syncs the profile in use with the one in use on the other device**
+- **🔁 Local auto-sync: paired devices keep each other in step by themselves, with what each one allows** (community PR #71 by @igebara)
+- **👂 Keep auto-sync listening, as a switch (off by default)**
+- **🔑 Stalker portals: an optional username and password**
+- **🏆 Sports: Scores | Calendar | Leagues tabs**
+- **📅 Sports Calendar: the month of every followed league, with the day's matches**
+- **🗂️ Sports Leagues: tables, fixtures and results; F1 drivers, constructors and races; tennis rankings**
+- **👕 Team pages: fixtures, results, next match, last five and table place**
+- **🆕 54 more leagues, with Volleyball and Lacrosse**
+- **🔄 Calendar refresh setting**
+- **📚 Home says the library is still loading, with the titles so far**
+- **👁️ Long-press menus: hide actions, and the default order matches the menus**
+- **📺 Hide All channels or Catch-up from the Live TV categories**
+- **⬇️ Allow downloads per profile; a whole show or season asks first with the episode count**
+- **📅 TV Guide: catch-up channels show their past days, up to a week back**
+- **⏮️ "Start of the programme" first in "Go back to…"**
+- **🎞️ Auto frame rate: separate switches for films and series, and Live TV**
+- **🔓 Ignore connection limit, per playlist**
+- **🔀 Sources: switch to another version of the channel playing**
+- **🧭 TV Guide follows Live TV's category, as a switch in Browsing & lists**
+- **👤 Each profile remembers its own last category and channel**
+- **🔎 Sports: Find channels knows every name a competition goes by — F1, EPL, La Liga, Formel 1 and more**
+- **🎚️ Sports: "Show likely channels" in Filter channels**
+- **🎬 Player: a film's or show's title art in place of its name, and a 4K badge**
+- **⏺️ Downloads › Live TV: every "Record every showing" listed, with Stop**
+
+### Fixes
+- **Fit: wide films stored in a 16:9 frame are no longer stretched**
+- **A series page shows the show's title art instead of its name**
+- **Deleting a download or recording asks first**
+- **Re-test measures the connection limit on Xtream, and the next sync keeps it**
+- **"Live now" shows the programme's start and end**
+- **Moved categories, channels, films and series keep their place in A–Z and Provider; the rest follow the sort**
+- **"Mark as watched" no longer shows "0 min"**
+- **Clean channel names can be found in Settings search**
+- **Channel logos no longer all disappear when one fails to load (#73)**
+- **Backup to "File on this phone" no longer crashes when no app can save it (#74)**
+- **Home, Library and the TV Guide follow the playlist you switch to**
+- **Large playlists keep loading in the background after a pause, and a minute after playback stops**
+- **Films tagged " - CAM" find their poster**
+- **Stalker series filed under films get their episodes**
+- **Live TV no longer keeps showing a category from the playlist you just switched away from**
+- **An Xtream playlist with a refused password says so instead of loading empty**
+- **A changed password, server, username or MAC re-syncs the playlist on save**
+- **Restoring a backup without passwords names the playlists that need one**
+- **A new playlist with a name already in use is numbered: "My IPTV 2"**
+- **Renamed channels, films and series keep their name on Home and in Continue**
+- **Stalker portals behind a redirect stay signed in; their posters load**
+- **Stalker sync slows down on portals that refuse parallel requests and loses no page; fast portals keep full speed**
+- **Stalker series listed among the films go to Series when the portal has no series section**
+- **Playlist rows show the full catalogue once the background download finishes**
+- **A notification sound only turns the sound down; calls, WhatsApp included, pause and resume**
+- **A live channel whose decoder fails to start is retried a few more times before giving up**
+- **Dolby Vision profile 5 films and series play with the right colours on mpv**
+- **Apple FairPlay channels say why they cannot play; FairPlay-labelled ClearKey channels play**
+- **Live TV no longer comes back on a hidden, locked or deleted category; switching profile brings back that profile's own**
+- **A channel from Search opens Live TV on its own category, scrolled to it** (community PR #75 by @saltimbanco)
+- **Series whose episodes carry two dates load their episodes again**
+- **A guide download cut off midway no longer deletes the rest of the guide**
+- **Play after a pause of over a minute on a live channel goes to the live edge, after a headphone unplug or a screen-off too**
+- **Panels that serve some channels as HLS behind a .ts address open faster and no longer fail after an offline channel** (community PRs ahXN00/OwnTV_Core#76 and #77 by @SirKitboard)
+- **Sports: Formula 1 no longer lists Formula E channels, nor the Premier League the Indian Premier League's**
+- **Sports: a broadcaster's unrelated channels are no longer "likely"**
+- **Adding an Xtream playlist no longer fails with "Expected a string but was BOOLEAN"**
+
 ## v1.1.1 — 2026-10-21
 
 ### New features

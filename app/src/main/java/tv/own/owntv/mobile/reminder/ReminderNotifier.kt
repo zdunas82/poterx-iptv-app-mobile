@@ -17,6 +17,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import tv.own.owntv.core.database.entity.ReminderEntity
+import tv.own.owntv.core.customize.CustomizationStore
+import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.reminder.ReminderManager
 import tv.own.owntv.core.settings.SettingsRepository
 import tv.own.owntv.mobile.R
@@ -29,7 +31,9 @@ import java.util.Date
  * Core wakes the app when a reminder is due ([ReminderManager.due]); the television draws its prompt
  * over whatever is on screen, because a television is always looking. A phone is mostly in a pocket, so
  * while no screen of the app is open — or when the setting is Notify only — the reminder becomes a
- * notification. A tap opens the app, where the shell asks (or switches) as the setting says.
+ * notification. A tap opens the app, where the shell asks (or switches) as the setting says. One on a
+ * channel filed under a locked category is not posted: the shade would show what the lock keeps out of
+ * sight. It stays due, and comes up in the app once the PIN opens the category.
  */
 object ReminderNotifier {
 
@@ -41,15 +45,26 @@ object ReminderNotifier {
 
     private val notified = HashSet<Long>()
 
-    fun start(app: Application, scope: CoroutineScope, reminders: ReminderManager, settings: SettingsRepository) {
+    fun start(
+        app: Application,
+        scope: CoroutineScope,
+        reminders: ReminderManager,
+        settings: SettingsRepository,
+        customize: CustomizationStore,
+        channels: ChannelDao,
+    ) {
+        suspend fun sealed(r: ReminderEntity) = customize.sealsCategory(r.profileId, channels.getById(r.channelId)?.categoryId)
         app.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
             override fun onActivityStarted(activity: Activity) { started++ }
             override fun onActivityStopped(activity: Activity) {
                 started = (started - 1).coerceAtLeast(0)
                 // Left with a prompt unanswered: what is still due goes to the notification shade.
-                if (started == 0) reminders.due.value.filter { it.id !in notified }.forEach { r ->
-                    post(app, r)
-                    notified += r.id
+                if (started == 0) scope.launch {
+                    reminders.due.value.filter { it.id !in notified }.forEach { r ->
+                        if (sealed(r)) return@forEach
+                        post(app, r)
+                        notified += r.id
+                    }
                 }
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
@@ -62,6 +77,7 @@ object ReminderNotifier {
             reminders.due.collect { due ->
                 val mode = settings.reminderMode.first()
                 due.filter { it.id !in notified }.forEach { r ->
+                    if (sealed(r)) return@forEach
                     if (mode == SettingsRepository.ReminderMode.NOTIFY) {
                         post(app, r)
                         notified += r.id

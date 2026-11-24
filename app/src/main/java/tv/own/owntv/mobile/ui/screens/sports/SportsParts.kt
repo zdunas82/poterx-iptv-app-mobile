@@ -29,6 +29,7 @@ import tv.own.owntv.core.sports.SportsCatalog
 import tv.own.owntv.core.sports.model.League
 import tv.own.owntv.core.sports.model.Match
 import tv.own.owntv.core.sports.model.MatchState
+import tv.own.owntv.core.sports.model.RaceSession
 import tv.own.owntv.core.sports.model.Score
 import tv.own.owntv.core.sports.model.Sport
 import tv.own.owntv.core.sports.model.Team
@@ -198,6 +199,59 @@ internal fun kickOffText(ms: Long): String =
     (dayOf(ms, LocalConfiguration.current.locales[0]) ?: stringResource(R.string.content_epg_today)) + " " + timeText(ms)
 
 internal fun isToday(ms: Long): Boolean = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate() == LocalDate.now()
+
+/** The yellow of a followed team's star. */
+internal val StarYellow = Color(0xFFFFD166)
+
+/** A racing session's name ("Practice 1", "Race") from ESPN's code in [Match.subtitle]; null for anything else. */
+@Composable
+@ReadOnlyComposable
+internal fun sessionLabel(m: Match): String? = RaceSession.of(m.subtitle)?.let { s ->
+    stringResource(
+        when (s) {
+            RaceSession.PRACTICE_1 -> R.string.sports_session_practice_1
+            RaceSession.PRACTICE_2 -> R.string.sports_session_practice_2
+            RaceSession.PRACTICE_3 -> R.string.sports_session_practice_3
+            RaceSession.SPRINT_QUALIFYING -> R.string.sports_session_sprint_qualifying
+            RaceSession.SPRINT -> R.string.sports_session_sprint
+            RaceSession.QUALIFYING -> R.string.sports_session_qualifying
+            RaceSession.RACE -> R.string.sports_session_race
+        },
+    )
+}
+
+internal fun localDate(ms: Long): LocalDate = Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()).toLocalDate()
+
+/** [date] in the user's language, in the best order for [skeleton] ("EEEdMMM" → "Sat 24 Oct"). */
+internal fun dateText(date: LocalDate, locale: Locale, skeleton: String = "EEEdMMM"): String =
+    DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, skeleton), locale).format(date)
+
+/** "October 2026", in the user's language. */
+internal fun monthTitle(month: java.time.YearMonth, locale: Locale): String =
+    DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "MMMMyyyy"), locale).format(month)
+
+/** "23 – 25 Oct" (or one day, "Sat 24 Oct"): the days [matches] cover. Null when empty. */
+internal fun rangeText(matches: List<Match>, locale: Locale): String? {
+    if (matches.isEmpty()) return null
+    val first = localDate(matches.minOf { it.startMs })
+    val last = localDate(matches.maxOf { it.startMs })
+    if (first == last) return dateText(first, locale)
+    // Both ends in full: joining a bare day number to a date reads wrongly where the month comes first ("2 – Nov 7").
+    return "${dateText(first, locale, "dMMM")} – ${dateText(last, locale, "dMMM")}"
+}
+
+/** [list] in rounds — matches on days next to each other ("6 – 8 Nov") — each headed by the days it covers, in [list]'s order. */
+internal fun byRound(list: List<Match>, locale: Locale): List<Pair<String, List<Match>>> {
+    val rounds = ArrayList<MutableList<Match>>()
+    var lastDay: LocalDate? = null
+    for (m in list) {
+        val day = localDate(m.startMs)
+        if (lastDay == null || kotlin.math.abs(day.toEpochDay() - lastDay.toEpochDay()) > 1) rounds.add(ArrayList())
+        rounds.last().add(m)
+        lastDay = day
+    }
+    return rounds.map { ms -> rangeText(ms, locale).orEmpty() to ms }
+}
 
 /** Postponed or cancelled: the match will not be played as listed. */
 internal val Match.off: Boolean get() = state == MatchState.POSTPONED || state == MatchState.CANCELLED

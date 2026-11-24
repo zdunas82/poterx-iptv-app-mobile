@@ -61,12 +61,15 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import tv.own.owntv.core.database.entity.ChannelEntity
 import tv.own.owntv.core.database.entity.EpgProgrammeEntity
 import tv.own.owntv.core.epg.displayLogoUrl
+import tv.own.owntv.core.categorylock.SealedCategoryAction
 import tv.own.owntv.core.live.LiveKey
 import tv.own.owntv.core.live.ProviderTags
 import tv.own.owntv.core.model.RecordingStatus
@@ -89,12 +92,14 @@ import tv.own.owntv.mobile.ui.screens.live.LiveCategory
 import tv.own.owntv.mobile.ui.screens.live.LiveCategoryMenu
 import tv.own.owntv.mobile.ui.screens.live.LiveTuner
 import tv.own.owntv.mobile.ui.screens.live.LiveViewModel
+import tv.own.owntv.mobile.ui.screens.live.STARTUP_ROW_WAIT_MS
 import tv.own.owntv.mobile.ui.screens.live.epgShiftLabel
 import tv.own.owntv.mobile.ui.screens.live.label
 import tv.own.owntv.mobile.ui.shell.LocalMiniRequested
 import tv.own.owntv.mobile.ui.shell.ProvidePageCrumb
 import tv.own.owntv.mobile.ui.shell.LocalStreamOnScreen
 import tv.own.owntv.mobile.ui.shell.PageCrumb
+import tv.own.owntv.mobile.ui.shell.StartupLiveSelection
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageButton
 import tv.own.owntv.mobile.ui.stage.StageButtonStyle
@@ -142,6 +147,14 @@ fun GuideScreen(
     val tuner: LiveTuner = koinInject()
     val categories by live.categories.collectAsStateWithLifecycle()
     val selected by vm.selected.collectAsStateWithLifecycle()
+    val followsLive by live.guideFollowsLive.collectAsStateWithLifecycle()
+    // All channels or Catch-up the user hid is not left on screen: the guide moves to where Live TV
+    // lands. An empty list is the one not loaded yet.
+    LaunchedEffect(categories, selected) {
+        if ((selected == LiveKey.All || selected == LiveKey.Catchup) && categories.isNotEmpty() && categories.none { it.key == selected }) {
+            vm.select(tv.own.owntv.core.live.liveLandingKey(categories, { it.key }, { it.sealed }))
+        }
+    }
     val channels = vm.channels.collectAsLazyPagingItems()
     val favorites by vm.favoriteIds.collectAsStateWithLifecycle()
     val query by vm.query.collectAsStateWithLifecycle()
@@ -170,6 +183,7 @@ fun GuideScreen(
     var channelMenuFor by remember { mutableStateOf<ChannelEntity?>(null) }
     var categoriesOpen by remember { mutableStateOf(false) }
     var categoryMenuFor by remember { mutableStateOf<LiveCategory?>(null) }
+    val lock = tv.own.owntv.mobile.ui.categorylock.rememberCategoryLock(tv.own.owntv.core.model.MediaType.LIVE)
     var restoreFor by remember { mutableStateOf<LiveCategory?>(null) }
     var dayOpen by remember { mutableStateOf(false) }
     var orderOpen by remember { mutableStateOf(false) }
@@ -236,6 +250,28 @@ fun GuideScreen(
         value = p?.let { ch to it }
     }
     val top = picked ?: fallback
+
+    // "Start on: Last channel · TV Guide": its category, its row scrolled to, and what is on it now picked
+    // and previewing, as a tap on the channel does. Only the grid has the preview; other views just show it.
+    // Otherwise, with "TV Guide follows Live TV" on, the guide opens on Live TV's remembered category.
+    val startupSelection: StartupLiveSelection = koinInject()
+    val settings: SettingsRepository = koinInject()
+    LaunchedEffect(Unit) {
+        val channel = startupSelection.consumeChannel(guide = true)
+        if (channel == null) {
+            live.guideOpeningKey()?.let(vm::select)
+            return@LaunchedEffect
+        }
+        vm.select(live.categoryKeyOf(channel))
+        withTimeoutOrNull(STARTUP_ROW_WAIT_MS) {
+            snapshotFlow { channels.itemSnapshotList.items.indexOfFirst { it.id == channel.id } }.first { it >= 0 }
+        }?.let { listState.scrollToItem(it) }
+        val now = System.currentTimeMillis()
+        val onNow = vm.row(channel).firstOrNull { it.startMs <= now && now < it.stopMs } ?: return@LaunchedEffect
+        picked = channel to onNow
+        val grid = (settings.guideView.first() ?: SettingsRepository.GuideView.GRID) == SettingsRepository.GuideView.GRID
+        if (grid && settings.guidePreview.first()) preview(channel)
+    }
 
     // Now: back to today, the grid centred on the now-line (it opens so too).
     fun jumpToNow() = vm.requestNow()
@@ -306,7 +342,9 @@ fun GuideScreen(
         if (stats?.mismatchedIds == true) GuideNotice(stringResource(R.string.content_epg_mismatched_ids))
 
         Box(Modifier.weight(1f)) {
-            if (channels.itemCount == 0) {
+            if (categories.firstOrNull { it.key == selected }?.sealed == true) {
+                tv.own.owntv.mobile.ui.categorylock.LockedCategoryState(onEnterPin = { lock.enterPin(selected) })
+            } else if (channels.itemCount == 0) {
                 EmptyGuide(
                     query = query,
                     stats = stats,
@@ -373,7 +411,10 @@ fun GuideScreen(
             counts = counts,
             showCounts = showCounts,
             marks = marksBySource,
-            onSelect = vm::select,
+            onSelect = { key ->
+                vm.select(key)
+                if (followsLive) live.select(key) // one remembered category for both
+            },
             onHold = { categoryMenuFor = it },
             onDismiss = { categoriesOpen = false },
             title = stringResource(R.string.content_epg_guide_category),
@@ -384,13 +425,20 @@ fun GuideScreen(
         LiveCategoryMenu(
             title = remember(category) { ProviderTags.parse(category.title.orEmpty()).name },
             custom = category.key is LiveKey.Custom,
-            onMove = { kind -> live.moveCategory(category.key, kind) },
+            onMove = { kind -> lock.guarded(category.key, category.sealed, SealedCategoryAction.MOVE) { live.moveCategory(category.key, kind) } },
             onHide = {
-                live.hideCategory(category.key)
-                if (selected == category.key) vm.select(LiveKey.All)
+                lock.guarded(category.key, category.sealed, SealedCategoryAction.HIDE) {
+                    live.hideCategory(category.key)
+                    if (selected == category.key) vm.select(tv.own.owntv.core.live.liveLandingKey(categories.filter { it.key != category.key }, { it.key }, { it.sealed }))
+                }
             },
-            onRestore = { categoryMenuFor = null; restoreFor = category },
+            onRestore = {
+                categoryMenuFor = null
+                lock.guarded(category.key, category.sealed, SealedCategoryAction.RESTORE) { restoreFor = category }
+            },
             onDismiss = { categoryMenuFor = null },
+            locked = tv.own.owntv.mobile.ui.categorylock.lockMenuState(category.key, category.locked),
+            onToggleLock = { lock.toggleLock(category.key) },
         )
     }
     restoreFor?.let { category ->
@@ -405,9 +453,11 @@ fun GuideScreen(
     }
     if (dayOpen) {
         val days by vm.guideDays.collectAsStateWithLifecycle()
+        val past by vm.pastDays.collectAsStateWithLifecycle()
         GuideDaySheet(
             selected = day,
             days = days,
+            past = past,
             onPick = { offset ->
                 vm.selectDay(offset)
                 // On now is always now: another day is read in the grid.
@@ -485,7 +535,8 @@ internal fun LiveGuideTools(guide: GuideViewModel, onGuideView: () -> Unit, modi
     }
     if (dayOpen) {
         val days by guide.guideDays.collectAsStateWithLifecycle()
-        GuideDaySheet(selected = day, days = days, onPick = guide::selectDay, onDismiss = { dayOpen = false })
+        val past by guide.pastDays.collectAsStateWithLifecycle()
+        GuideDaySheet(selected = day, days = days, past = past, onPick = guide::selectDay, onDismiss = { dayOpen = false })
     }
 }
 
@@ -542,13 +593,14 @@ internal fun LiveGuideGrid(guide: GuideViewModel, category: LiveKey, onTune: (Ch
     }
 }
 
-/** "Today", "Tomorrow", else "Wed 14 Oct" in the locale's own order. */
+/** "Today", "Tomorrow", "Yesterday", else "Wed 14 Oct" in the locale's own order. */
 @Composable
 private fun dayLabel(offset: Int): String {
     val locale = LocalConfiguration.current.locales[0]
     return when (offset) {
         0 -> stringResource(R.string.content_epg_today)
         1 -> stringResource(R.string.content_epg_tomorrow)
+        -1 -> stringResource(R.string.content_epg_yesterday)
         else -> remember(locale, offset) {
             val pattern = android.text.format.DateFormat.getBestDateTimePattern(locale, "EEEdMMM")
             val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) }
@@ -1007,10 +1059,11 @@ internal fun reminderLeadText(minutes: Int): String =
 
 /** Today first, then the days the guide keeps. */
 @Composable
-private fun GuideDaySheet(selected: Int, days: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+private fun GuideDaySheet(selected: Int, days: Int, past: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
     MobileBottomSheet(onDismissRequest = onDismiss, title = stringResource(R.string.content_epg_today)) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            repeat(days) { offset ->
+            // Oldest first, as the days run; [past] days back only when there is catch-up to replay them.
+            (-past until days).forEach { offset ->
                 StageMenuItem(dayLabel(offset), onClick = { onPick(offset); onDismiss() }, icon = MobileIcons.CalendarMonth, filled = offset == selected)
             }
         }

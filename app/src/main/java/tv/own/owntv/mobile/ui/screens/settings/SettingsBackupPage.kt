@@ -1,5 +1,6 @@
 package tv.own.owntv.mobile.ui.screens.settings
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,7 +55,6 @@ import tv.own.owntv.mobile.R
 import tv.own.owntv.mobile.ui.components.MobileBottomSheet
 import tv.own.owntv.mobile.ui.components.MobileIcons
 import tv.own.owntv.mobile.ui.components.StageConfirmItems
-import tv.own.owntv.mobile.ui.profiles.ProfilePinSheet
 import tv.own.owntv.mobile.ui.screens.MoreCountsViewModel
 import tv.own.owntv.mobile.ui.setup.copyPickedFile
 import tv.own.owntv.mobile.ui.setup.rememberBackupFilePicker
@@ -117,13 +117,9 @@ fun SettingsBackupPage(
     var restoreChooser by remember { mutableStateOf(false) }
     var remoteRestore by remember { mutableStateOf(false) }
     var remoteExport by remember { mutableStateOf(false) }
-    // Held while the document picker is in front: the user has already said what to export, and the
-    // picker only decides where it goes.
-    var chosen by remember { mutableStateOf<ExportRequest?>(null) }
-
     val createDocument = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME)) { uri ->
-        val request = chosen
-        chosen = null
+        val request = vm.pendingFileExport
+        vm.pendingFileExport = null
         if (uri != null && request != null) {
             vm.export(uri, BACKUP_FILE_NAME, request.sections, request.profileIds, request.password)
         }
@@ -190,17 +186,39 @@ fun SettingsBackupPage(
         }
     }
 
+    // Profiles in the file named like ones here: Merge, Replace or Keep both, one at a time.
+    vm.clashAsk?.let { ask ->
+        RestoreClashSheet(
+            ask = ask,
+            profiles = profiles,
+            activeId = activeId,
+            verify = vm::verifyPin,
+            onDone = vm::clashesAnswered,
+            onCancel = vm::cancelClashes,
+        )
+    }
+
     exportTarget?.let { target ->
+        var protectedIds by remember(target) { mutableStateOf<Set<Long>?>(null) }
+        LaunchedEffect(target) { protectedIds = vm.protectedIds() }
+        val known = protectedIds ?: return@let
         ExportSheet(
             profiles = profiles,
             activeProfileId = activeId,
+            protectedIds = known,
             verifyPin = vm::verifyPin,
             onExport = { request ->
                 exportTarget = null
                 when (target) {
                     BackupTarget.FILE -> {
-                        chosen = request
-                        createDocument.launch(BACKUP_FILE_NAME)
+                        vm.pendingFileExport = request
+                        // Some phones have no app that answers "save a file" (the system Files app
+                        // disabled or removed), and launching the picker there throws.
+                        try {
+                            createDocument.launch(BACKUP_FILE_NAME)
+                        } catch (_: ActivityNotFoundException) {
+                            vm.reportNoFileApp()
+                        }
                     }
                     BackupTarget.REMOTE -> {
                         remoteExport = true
@@ -423,7 +441,7 @@ private fun CompanionFailure.text(): String = when (this) {
 }
 
 /** Everything the export needs, decided before the picker opens. */
-private data class ExportRequest(
+internal data class ExportRequest(
     val sections: Set<BackupManager.Section>,
     val profileIds: Set<Long>,
     val password: String?,
@@ -448,7 +466,8 @@ private fun SwitchRow(label: String, description: String?, checked: Boolean, onT
 private fun ExportSheet(
     profiles: List<ProfileEntity>,
     activeProfileId: Long,
-    verifyPin: (ProfileEntity, String) -> Boolean,
+    protectedIds: Set<Long>,
+    verifyPin: suspend (ProfileEntity, String) -> tv.own.owntv.core.categorylock.PinAttempt,
     onExport: (ExportRequest) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -463,7 +482,7 @@ private fun ExportSheet(
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             StageGroupLabel(stringResource(R.string.settings_backup_which_profiles))
             profiles.forEach { profile ->
-                val locked = profile.pinHash != null && profile.id != activeProfileId
+                val locked = profile.id in protectedIds && profile.id != activeProfileId
                 SwitchRow(
                     label = if (profile.id == activeProfileId) stringResource(R.string.settings_backup_profile_current, profile.name) else profile.name,
                     description = if (locked) stringResource(R.string.settings_backup_pin_locked) else null,
@@ -507,16 +526,11 @@ private fun ExportSheet(
     }
 
     pinFor?.let { locked ->
-        ProfilePinSheet(
+        tv.own.owntv.mobile.ui.profiles.ProtectedProfilePinSheet(
             profileName = locked.name,
-            onSubmit = { pin ->
-                verifyPin(locked, pin).also {
-                    if (it) {
-                        profileIds = profileIds + locked.id
-                        pinFor = null
-                    }
-                }
-            },
+            body = stringResource(R.string.settings_backup_profile_pin_description),
+            verify = { pin -> verifyPin(locked, pin) },
+            onUnlocked = { profileIds = profileIds + locked.id; pinFor = null },
             onDismiss = { pinFor = null },
         )
     }

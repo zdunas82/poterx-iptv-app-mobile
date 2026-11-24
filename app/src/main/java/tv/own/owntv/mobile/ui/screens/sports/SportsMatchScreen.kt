@@ -84,6 +84,7 @@ fun SportsMatchScreen(
     matchKey: String,
     onPlayChannel: (Long) -> Unit,
     onOpenLeague: (String) -> Unit,
+    onOpenTeam: (TeamRef) -> Unit,
     onAddPlaylist: () -> Unit,
     vm: SportsViewModel = koinViewModel(),
 ) {
@@ -116,10 +117,21 @@ fun SportsMatchScreen(
         if (tab == MatchTab.WATCH && i >= 0) listState.scrollToItem(rowsStart + i)
     }
 
+    // The competition as a catalogue league: its name opens it in the Leagues tab.
+    val leagueKey = tv.own.owntv.core.sports.model.League.keyOf(m.sport, m.leagueSlug).takeIf { tv.own.owntv.core.sports.SportsCatalog.league(it) != null }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 100.dp)) {
         item(key = "crumb") {
             Row(Modifier.fillMaxWidth().padding(start = 14.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(leagueName(m), style = stageText(12.5f, 600), color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Row(
+                    Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
+                        .then(if (leagueKey != null) Modifier.clickable { onOpenLeague(leagueKey) } else Modifier)
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(leagueName(m), style = stageText(12.5f, 600), color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (leagueKey != null) StageIcon(MobileIcons.KeyboardArrowRight, 14.dp, stageAccent.accent)
+                }
                 val following = vm.follows(state.config, m.feed)
                 StageTool(
                     onClick = { vm.toggleLeague(m.feed) },
@@ -129,7 +141,7 @@ fun SportsMatchScreen(
             }
         }
         item(key = "score") {
-            ScoreBox(m, state.summary, hidden = state.config.spoilerFree && !revealed, onReveal = { revealed = true })
+            ScoreBox(m, state.summary, hidden = state.config.spoilerFree && !revealed, onReveal = { revealed = true }, onOpenTeam = onOpenTeam)
             // The live score card: only on the phone, while the match is still to be decided.
             if (MatchAlertHost.backgroundAllowed && state.config.alerts.liveCard && (m.isLive || m.state == MatchState.PRE)) {
                 StageTool(
@@ -149,7 +161,7 @@ fun SportsMatchScreen(
             MatchTab.TIMELINE -> items((state.summary?.timeline ?: m.events).asReversed()) { e -> TimelineRow(e, m) }
             MatchTab.STATS -> items(state.summary?.stats.orEmpty()) { s -> StatRow(s.label, s.home, s.away) }
             MatchTab.LINEUPS -> item { Lineups(m, state.summary) }
-            MatchTab.TABLE -> item { TablePreview(state.standings, m) { onOpenLeague(tv.own.owntv.core.sports.model.League.keyOf(m.sport, m.leagueSlug)) } }
+            MatchTab.TABLE -> item { TablePreview(state.standings, m) { leagueKey?.let(onOpenLeague) } }
             MatchTab.FORM -> item { Form(m, state.summary) }
             MatchTab.BROADCASTS -> item { Broadcasts(m, (state.search as? ChannelSearch.Found)?.options) }
         }
@@ -301,11 +313,11 @@ private fun NoPlaylistNote(onAddPlaylist: () -> Unit) {
 }
 
 /**
- * The score box: crest and name each side, the score, LIVE · minute; then time · round · venue and
- * each side's scorers. Spoiler-free: the score is a dash until a tap.
+ * The score box: crest and name each side (a tap opens its team page), the score, LIVE · minute; then
+ * time · round · venue and each side's scorers. Spoiler-free: the score is a dash until a tap.
  */
 @Composable
-private fun ScoreBox(m: Match, summary: MatchSummary?, hidden: Boolean, onReveal: () -> Unit) {
+private fun ScoreBox(m: Match, summary: MatchSummary?, hidden: Boolean, onReveal: () -> Unit, onOpenTeam: (TeamRef) -> Unit) {
     val palette = LocalStagePalette.current
     val sep = stringResource(R.string.content_epg_bits_separator)
     val locale = LocalConfiguration.current.locales[0]
@@ -321,7 +333,7 @@ private fun ScoreBox(m: Match, summary: MatchSummary?, hidden: Boolean, onReveal
         val home = m.home
         val away = m.away
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Side(home?.team, Modifier.weight(1f))
+            Side(home?.team, m, onOpenTeam, Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 val score = when {
                     m.competitors.size < 2 -> m.title
@@ -339,7 +351,7 @@ private fun ScoreBox(m: Match, summary: MatchSummary?, hidden: Boolean, onReveal
                     style = stageText(11.5f, 700), color = palette.muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            Side(away?.team, Modifier.weight(1f))
+            Side(away?.team, m, onOpenTeam, Modifier.weight(1f))
         }
         val info = listOfNotNull(kickOffText(m.startMs).takeIf { m.state != MatchState.PRE }, m.subtitle, m.venue).joinToString(sep)
         if (info.isNotEmpty()) Text(info, style = stageText(11.5f, 500), color = palette.muted, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(top = 10.dp))
@@ -357,8 +369,13 @@ private fun ScoreBox(m: Match, summary: MatchSummary?, hidden: Boolean, onReveal
 }
 
 @Composable
-private fun Side(team: tv.own.owntv.core.sports.model.Team?, modifier: Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+private fun Side(team: tv.own.owntv.core.sports.model.Team?, m: Match, onOpenTeam: (TeamRef) -> Unit, modifier: Modifier) {
+    val ref = team?.let { teamRefOf(m, it) }
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).then(if (ref != null) Modifier.clickable { onOpenTeam(ref) } else Modifier).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
         if (team != null) {
             Crest(team, 48)
             Text(teamLabel(team), style = stageText(12.5f, 700), color = LocalStagePalette.current.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -568,20 +585,26 @@ internal fun StandingsHeader() {
     }
 }
 
-/** One table row; [highlight] (a side of the open match, a followed team) on accent 14%. */
+/**
+ * One table row; [highlight] (a side of the open match, a followed team) on accent 14%, [star] for one of
+ * My teams. A tap opens the team's page where it has one ([onClick]).
+ */
 @Composable
-internal fun StandingsLine(row: StandingsRow, highlight: Boolean) {
+internal fun StandingsLine(row: StandingsRow, highlight: Boolean, star: Boolean = false, onClick: (() -> Unit)? = null) {
     val palette = LocalStagePalette.current
     Row(
         Modifier.fillMaxWidth()
-            .then(if (highlight) Modifier.background(stageAccent.accent.copy(alpha = 0.14f), RoundedCornerShape(8.dp)) else Modifier)
+            .clip(RoundedCornerShape(8.dp))
+            .then(if (highlight) Modifier.background(stageAccent.accent.copy(alpha = 0.14f)) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 8.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(row.rank.toString(), style = stageText(12.5f, 700), color = palette.muted, modifier = Modifier.width(24.dp))
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Crest(row.team, 18)
-            Text(row.team.shortName, style = stageText(12.5f, if (highlight) 800 else 600), color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(row.team.shortName, style = stageText(12.5f, if (highlight) 800 else 600), color = palette.text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            if (star) Text("★", style = stageText(12f, 700), color = StarYellow, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         listOf(row.played.toString(), row.won.toString(), row.drawn.toString(), row.lost.toString(), row.difference, row.points.toString()).forEachIndexed { i, v ->
             Text(v, style = stageText(12.5f, if (i == 5) 800 else 500), color = if (i == 5) palette.text else palette.body, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.End, modifier = Modifier.width(NumberColumn))

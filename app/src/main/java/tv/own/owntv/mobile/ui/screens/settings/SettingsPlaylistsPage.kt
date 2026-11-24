@@ -46,6 +46,7 @@ import tv.own.owntv.core.ui.stage.PlaylistMark
 import tv.own.owntv.mobile.ui.shell.displayName
 import tv.own.owntv.mobile.ui.stage.LocalStagePalette
 import tv.own.owntv.mobile.ui.stage.StageButton
+import tv.own.owntv.mobile.ui.stage.StageField
 import tv.own.owntv.mobile.ui.stage.StageMenuItem
 import tv.own.owntv.mobile.ui.stage.StagePill
 import tv.own.owntv.mobile.ui.stage.StagePlaylistMark
@@ -82,6 +83,7 @@ fun SettingsPlaylistsPage(
     var menuSource by remember { mutableStateOf<SourceEntity?>(null) }
     var editSource by remember { mutableStateOf<SourceEntity?>(null) }
     var refreshFor by remember { mutableStateOf<SourceEntity?>(null) }
+    var namesFor by remember { mutableStateOf<SourceEntity?>(null) }
     var confirmDelete by remember { mutableStateOf<SourceEntity?>(null) }
     // Set while the "this will stop playback and take a while" confirmation is on screen.
     var confirmRetest by remember { mutableStateOf<SourceEntity?>(null) }
@@ -110,7 +112,7 @@ fun SettingsPlaylistsPage(
         }
     }
 
-    // The playlist's header, then Re-sync · Re-sync and remove · Edit · Test · Auto refresh · Default · Delete.
+    // The playlist's header, then Re-sync · Re-sync and remove · Edit · Names · Info · Auto refresh · Default · Delete.
     menuSource?.let { source ->
         val syncing = vm.syncState(source.id).collectAsStateWithLifecycle(CatalogSyncState.Idle).value.isActive
         val counts = vm.contentCounts(source.id).collectAsStateWithLifecycle(null).value
@@ -128,6 +130,7 @@ fun SettingsPlaylistsPage(
                 StageMenuItem(stringResource(R.string.settings_sources_resync_remove_full), onClick = { vm.resync(source, removeMissing = true); close() }, icon = MobileIcons.Refresh)
             }
             StageMenuItem(stringResource(R.string.settings_sources_edit), onClick = { editSource = source; close() }, icon = MobileIcons.Edit)
+            StageMenuItem(stringResource(R.string.settings_sources_clean_names), onClick = { namesFor = source; close() }, icon = MobileIcons.AutoAwesome)
             // "Info", not "Test": the expensive measurement lives behind Re-test inside the sheet.
             StageMenuItem(stringResource(R.string.settings_sources_info), onClick = { vm.testSource(source); close() }, icon = MobileIcons.Info)
             StageMenuItem(
@@ -188,6 +191,14 @@ fun SettingsPlaylistsPage(
         )
     }
 
+    namesFor?.let { source ->
+        ChannelNamesSheet(
+            source = source,
+            onSave = { enabled, text -> vm.saveChannelNameCleanup(source, enabled, text); namesFor = null },
+            onDismiss = { namesFor = null },
+        )
+    }
+
     confirmDelete?.let { source ->
         StageConfirmSheet(
             title = stringResource(R.string.settings_sources_delete_title, source.displayName()),
@@ -213,7 +224,12 @@ fun SettingsPlaylistsPage(
                         stringResource(R.string.settings_sources_probe_running, state.progress.stream, state.progress.maxStreams),
                         style = stageText(12.5f, 500), color = palette.muted,
                     )
-                    is SettingsViewModel.SourceTestState.Done -> TestReport(state.result, state.limit)
+                    is SettingsViewModel.SourceTestState.Done -> {
+                        TestReport(state.result, state.limit)
+                        if (sources.firstOrNull { it.name == state.sourceName }?.ignoreConnectionLimit == true) {
+                            Text(stringResource(R.string.settings_sources_ignore_limit_on), style = stageText(12.5f, 500), color = palette.muted)
+                        }
+                    }
                 }
             }
             // While measuring the only honest action abandons it; afterwards, the one that repeats it.
@@ -222,6 +238,13 @@ fun SettingsPlaylistsPage(
             } else if (state is SettingsViewModel.SourceTestState.Done) {
                 sources.firstOrNull { it.name == state.sourceName }?.let { src ->
                     StageMenuItem(stringResource(R.string.settings_sources_retest), onClick = { confirmRetest = src }, icon = MobileIcons.Refresh)
+                    // For a provider that allows more than it says, when measuring cannot show it.
+                    StageMenuItem(
+                        stringResource(R.string.settings_sources_ignore_limit),
+                        onClick = { vm.setIgnoreConnectionLimit(src, !src.ignoreConnectionLimit) },
+                        icon = MobileIcons.Multiview,
+                        value = stringResource(if (src.ignoreConnectionLimit) R.string.common_on else R.string.common_off),
+                    )
                 }
             }
             StageMenuItem(stringResource(R.string.common_done), onClick = vm::dismissSourceTest, icon = MobileIcons.Check)
@@ -307,6 +330,43 @@ private fun PlaylistRow(
     }
 }
 
+/**
+ * A playlist's "Clean channel names": the switch, then the user's own words to remove. Saving
+ * stores the choice; the playlist re-syncs when the shown names change.
+ */
+@Composable
+private fun ChannelNamesSheet(
+    source: SourceEntity,
+    onSave: (enabled: Boolean, customText: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var enabled by remember { mutableStateOf(source.cleanChannelNames) }
+    var customText by remember { mutableStateOf(source.channelNameStrip.orEmpty()) }
+    val title = stringResource(R.string.settings_sources_clean_names_title, source.displayName())
+    MobileBottomSheet(onDismissRequest = onDismiss, title = title) {
+        StageSheetHeader(title, subtitle = stringResource(R.string.settings_sources_clean_names_description))
+        StageSettingRow(
+            title = stringResource(R.string.settings_sources_clean_names_toggle),
+            subtitle = stringResource(R.string.settings_sources_clean_names_example),
+            minHeight = 48.dp,
+            onClick = { enabled = !enabled },
+        ) { StageSwitch(enabled) }
+        StageField(
+            value = customText,
+            onValueChange = { customText = it },
+            label = stringResource(R.string.settings_sources_clean_names_custom),
+            placeholder = stringResource(R.string.settings_sources_clean_names_custom_hint),
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        SheetButtons(
+            confirm = stringResource(R.string.common_save),
+            confirmEnabled = true,
+            onConfirm = { onSave(enabled, customText) },
+            onDismiss = onDismiss,
+        )
+    }
+}
+
 /** The add form again, full screen on the Stage page, with the playlist's own answers already in it. */
 @Composable
 private fun EditPlaylistDialog(
@@ -329,7 +389,7 @@ private fun EditPlaylistDialog(
             AddSourceForm(
                 onStartXtream = { _, _, _, _, _, _, _, _, _, _, _ -> },
                 onStartM3u = { _, _, _, _, _ -> },
-                onStartStalker = { _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
+                onStartStalker = { _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ -> },
                 initial = source.toFormValues(),
                 onSave = onSave,
             )

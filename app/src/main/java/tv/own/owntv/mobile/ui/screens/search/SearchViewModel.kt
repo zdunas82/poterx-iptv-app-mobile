@@ -104,7 +104,7 @@ class SearchViewModel(
         .mapLatest { (rows, c, _) ->
             val channels = rows.map { it.channel }.distinctBy { it.id }
             if (channels.isEmpty() || c.profileId < 0) emptyMap()
-            else epgReader.nowProgrammesFor(channels, customize.observe(c.profileId, MediaType.LIVE).first(), settings.epgOffsetMinutes.first())
+            else epgReader.nowProgrammesFor(channels, customize.observeVisible(c.profileId, MediaType.LIVE).first(), settings.epgOffsetMinutes.first())
                 .mapValues { it.value.title }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())

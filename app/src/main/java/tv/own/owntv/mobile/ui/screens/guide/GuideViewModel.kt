@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -123,6 +124,7 @@ class GuideViewModel(
     private val recordings: tv.own.owntv.core.recording.RecordingManager,
     private val xtream: tv.own.owntv.core.parser.XtreamClient,
     private val reminders: tv.own.owntv.core.reminder.ReminderManager,
+    private val archiveGuide: tv.own.owntv.core.epg.ArchiveGuideFiller,
 ) : ViewModel() {
 
     /** The one candidate set the picker and auto-match read — filtered by no source. */
@@ -137,7 +139,7 @@ class GuideViewModel(
     private val custom: StateFlow<SectionCustomizations> = ctx
         .flatMapLatest { c ->
             if (c.profileId < 0) flowOf(SectionCustomizations())
-            else customize.observe(c.profileId, MediaType.LIVE)
+            else customize.observeVisible(c.profileId, MediaType.LIVE)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SectionCustomizations())
 
@@ -180,6 +182,17 @@ class GuideViewModel(
 
     fun select(key: LiveKey) { _selected.value = key }
 
+    // Another playlist can leave the guide on a folder the playlists now shown do not have: its rows stayed
+    // listed under an empty label. Such a folder falls back to All, as on Live TV.
+    init {
+        viewModelScope.launch {
+            ctx.filter { it.profileId >= 0L }.map { it.liveSourceIds }.distinctUntilChanged().drop(1).collect { ids ->
+                val key = _selected.value as? LiveKey.Folder ?: return@collect
+                if (categoryDao.getById(key.id)?.sourceId !in ids) _selected.value = LiveKey.All
+            }
+        }
+    }
+
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
 
@@ -199,9 +212,17 @@ class GuideViewModel(
     private val _day = MutableStateFlow(0)
     val day: StateFlow<Int> = _day
 
+    /**
+     * How many days back the day list reaches: the week of past programmes the guide keeps, when the
+     * playlists have catch-up channels to replay them on (the archive fill adds them), else none.
+     */
+    val pastDays: StateFlow<Int> by lazy { _stats
+        .map { if ((it?.catchupChannels ?: 0) > 0) PAST_DAYS else 0 }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0) }
+
     fun selectDay(offset: Int) {
         if (_day.value == offset) return
-        _day.value = offset.coerceIn(0, guideDays.value - 1)
+        _day.value = offset.coerceIn(-pastDays.value, guideDays.value - 1)
         synchronized(rowCache) { rowCache.clear() }
     }
 
@@ -455,6 +476,18 @@ class GuideViewModel(
     /** Read straight from the cache, so a row scrolled back into view draws without a blank frame. */
     fun cachedRow(channelId: Long): List<EpgProgrammeEntity>? = synchronized(rowCache) { rowCache[channelId] }
 
+    /**
+     * Ask for the past days a catch-up [channel]'s guide feed lacks, from its provider's archive. Called
+     * for a row that stays on screen; the queue, its pacing and the "once every few hours per channel"
+     * rule are core's ([tv.own.owntv.core.epg.ArchiveGuideFiller]).
+     */
+    fun requestArchiveGuide(channel: ChannelEntity) = archiveGuide.request(channel, custom.value)
+
+    override fun onCleared() {
+        // Rows of a guide nobody is looking at any more are not asked for.
+        archiveGuide.forgetPending()
+    }
+
     /** This channel's programmes for the selected day, read as the row comes into view. */
     suspend fun row(channel: ChannelEntity): List<EpgProgrammeEntity> {
         cachedRow(channel.id)?.let { return it }
@@ -697,6 +730,15 @@ class GuideViewModel(
                 .debounce(GUIDE_DATA_SETTLE_MS)
                 .drop(1) // The first is the guide as it already stands on screen.
                 .collect { refreshRows() }
+        }
+        // A catch-up channel's past days arrived from its provider's archive (see requestArchiveGuide).
+        // They are stored apart from every feed, so the count above does not move: that one row is
+        // dropped and read again, and the other rows answer from the cache.
+        viewModelScope.launch {
+            archiveGuide.added.collect { channelId ->
+                synchronized(rowCache) { rowCache.remove(channelId) }
+                _revision.value++
+            }
         }
     }
 
@@ -955,6 +997,8 @@ class GuideViewModel(
     }
 
     private companion object {
+        /** The guide keeps a week of past programmes (core's retention), so a week is offered. */
+        const val PAST_DAYS = 7
         const val PAGE_SIZE = 40
         // How many guide rows to keep read. A phone screen shows a handful; this is generous enough
         // that scrolling back never re-reads, and small enough that the guide's memory does not grow

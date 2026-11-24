@@ -16,6 +16,7 @@ import tv.own.owntv.core.database.dao.ChannelDao
 import tv.own.owntv.core.database.dao.EpgDao
 import tv.own.owntv.core.epg.EpgSource
 import tv.own.owntv.core.epg.EpgSourceStore
+import tv.own.owntv.core.live.LiveEpgReader
 import tv.own.owntv.core.repository.EpgRepository
 import tv.own.owntv.core.repository.SourceRepository
 import tv.own.owntv.core.settings.EpgRefresh
@@ -32,6 +33,7 @@ class EpgSourcesViewModel(
     private val epgDao: EpgDao,
     private val channelDao: ChannelDao,
     private val sourceRepository: SourceRepository,
+    private val liveEpgReader: LiveEpgReader,
 ) : ViewModel() {
 
     /** An existing playlist's EPG feed, offered as a one-tap "fill from playlist" option. */
@@ -88,6 +90,17 @@ class EpgSourcesViewModel(
             store.update(updated)
             val base = epgDao.countForSources(listOf(updated.id))
             epgSync.enqueueSync(updated.id, "update", base)
+        }
+    }
+
+    /**
+     * Move [source] one place up or down the list: its guide priority. Live TV's cached now/next came
+     * from the old order, so it is dropped.
+     */
+    fun move(source: EpgSource, up: Boolean) {
+        viewModelScope.launch {
+            store.move(source.id, up)
+            liveEpgReader.clearCache()
         }
     }
 
