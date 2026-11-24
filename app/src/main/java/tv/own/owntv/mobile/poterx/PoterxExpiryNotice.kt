@@ -61,7 +61,8 @@ private const val DAY_MS = 24L * 60 * 60 * 1000
 private const val PREFS = "poterx_expiry"
 private const val KEY_SHOWN_DAY = "shown_day"
 
-private class ExpiryNotice(val expiryMs: Long, val daysLeft: Int)
+/** [shownKey] and [day] are what is written once the sheet has been drawn: this playlist, today. */
+private class ExpiryNotice(val expiryMs: Long, val daysLeft: Int, val shownKey: String, val day: Long)
 
 /**
  * Poterx: the "subscription ends soon" sheet. Shortly after start the panel is asked for the
@@ -69,7 +70,9 @@ private class ExpiryNotice(val expiryMs: Long, val daysLeft: Int)
  * the days left and how to renew: the provider's contact line and the Telegram group, which a tap
  * opens (a phone has a browser; the television could only show a QR code). Shown at most once a
  * day per playlist, and only when nothing is playing fullscreen ([canShow]) — a notice found while a
- * channel is up waits for the player to close.
+ * channel is up waits for the player to close. The day counts as used when the sheet has been
+ * drawn, not when it was decided, and the date is asked again once a day while the app stays open
+ * ([PoterxDaily]), not only at its start (the television's 0.4.5.6).
  */
 @Composable
 fun PoterxExpiryNotice(canShow: Boolean) {
@@ -81,9 +84,15 @@ fun PoterxExpiryNotice(canShow: Boolean) {
     var notice by remember { mutableStateOf<ExpiryNotice?>(null) }
     // Keyed on the profile: a sign-in after a sign-out, or a switch to a profile with its own list, asks again.
     val profileId by settings.activeProfileId.collectAsStateWithLifecycle(initialValue = -1L)
-    LaunchedEffect(profileId) {
+    var checkRound by remember { mutableStateOf(0) }
+    var lastCheckAt by remember { mutableStateOf(0L) }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        if (lastCheckAt > 0L && PoterxDaily.due(lastCheckAt, System.currentTimeMillis())) checkRound++
+    }
+    LaunchedEffect(profileId, checkRound) {
         if (profileId < 0L) return@LaunchedEffect
         delay(EXPIRY_CHECK_DELAY_MS)
+        lastCheckAt = System.currentTimeMillis()
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val today = System.currentTimeMillis() / DAY_MS
         // The profile in use: a second list has its own subscription, and its own once-a-day notice.
@@ -96,11 +105,13 @@ fun PoterxExpiryNotice(canShow: Boolean) {
         val remaining = found - System.currentTimeMillis()
         val daysLeft = if (remaining <= 0L) 0 else ceil(remaining / DAY_MS.toDouble()).toInt()
         if (daysLeft > POTERX_EXPIRY_WARN_DAYS) return@LaunchedEffect
-        prefs.edit().putLong(shownKey, today).apply()
-        notice = ExpiryNotice(found, daysLeft)
+        notice = ExpiryNotice(found, daysLeft, shownKey, today)
     }
     val current = notice ?: return
     if (!canShow) return
+    LaunchedEffect(current) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putLong(current.shownKey, current.day).apply()
+    }
     ExpirySheet(current, onDismiss = { notice = null })
 }
 

@@ -60,10 +60,25 @@ object PoterxAccount {
         sourceRepository: SourceRepository,
         profileDao: ProfileDao,
         epgStore: EpgSourceStore,
+        epgRepository: EpgRepository,
         settings: SettingsRepository,
+        catalogSyncScheduler: CatalogSyncScheduler,
+        epgSyncScheduler: EpgSyncScheduler,
     ) {
-        sourceDao.getAllOnce().forEach { runCatching { sourceRepository.deleteSource(it) } }
-        epgStore.getAll().forEach { runCatching { epgStore.remove(it.id) } }
+        // The steps the app's own delete takes: scheduled work first, then each guide feed's
+        // programmes with the feed. Only the feed's entry used to go, and its programmes stayed
+        // behind: after the next sign-in every programme was listed twice until the old rows aged
+        // out (the television's review of 0.4.5.5, the same code here).
+        sourceDao.getAllOnce().forEach { source ->
+            runCatching { catalogSyncScheduler.cancelSync(source.id) }
+            runCatching { settings.setPlaylistAutoRefresh(source.id, PlaylistRefresh.OFF) }
+            runCatching { sourceRepository.deleteSource(source) }
+        }
+        epgStore.getAll().forEach { feed ->
+            runCatching { epgSyncScheduler.cancelSync(feed.id) }
+            runCatching { epgRepository.clear(feed.id) }
+            runCatching { epgStore.remove(feed.id) }
+        }
         runCatching { profileDao.deleteAll() }
         settings.setActiveProfile(-1L)
         PoterxAccountStatus.clear()

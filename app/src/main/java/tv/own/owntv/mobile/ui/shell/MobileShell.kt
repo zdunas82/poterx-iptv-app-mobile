@@ -412,15 +412,44 @@ fun MobileShell(
     val updateRequired by updateManager.required.collectAsStateWithLifecycle()
     var updateChecked by remember { mutableStateOf(false) }
     var updateSheetOpen by remember { mutableStateOf(false) }
+    // Poterx (as the television since 0.4.5.6): a locked build always asks at start, and again once a
+    // day when the app comes back to the front — a phone keeps an app in memory for days, and a
+    // release that stops serving this version (the required sheet) must not wait for a cold start.
+    // With "Check on start" off the ask is quiet: it serves that required sheet, not the offer of an
+    // optional update the customer chose not to be shown.
+    val lockedBuild = tv.own.owntv.mobile.poterx.LockedSource.enabled
+    var lastUpdateCheckAt by remember { mutableStateOf(0L) }
+    var quietUpdateCheck by remember { mutableStateOf(false) }
     LaunchedEffect(updateCheckOnStart) {
-        if (updateCheckOnStart && !updateChecked) {
+        if ((updateCheckOnStart || lockedBuild) && !updateChecked) {
             updateChecked = true
             delay(5_000)
+            lastUpdateCheckAt = System.currentTimeMillis()
+            quietUpdateCheck = !updateCheckOnStart
+            updateManager.check()
+        }
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        val now = System.currentTimeMillis()
+        val busy = updateState is UpdateManager.State.Checking || updateState is UpdateManager.State.Downloading
+        if (lockedBuild && lastUpdateCheckAt > 0L && !busy && !updateSheetOpen && !updateRequired &&
+            tv.own.owntv.mobile.poterx.PoterxDaily.due(lastUpdateCheckAt, now)
+        ) {
+            lastUpdateCheckAt = now
+            quietUpdateCheck = !updateCheckOnStart
             updateManager.check()
         }
     }
     LaunchedEffect(updateState) {
-        if (updateState is UpdateManager.State.Available) updateSheetOpen = true
+        when (updateState) {
+            is UpdateManager.State.Available -> {
+                if (!quietUpdateCheck) updateSheetOpen = true
+                quietUpdateCheck = false
+            }
+            // A quiet ask has its answer: the next one, from Settings, is the customer's own again.
+            is UpdateManager.State.UpToDate, is UpdateManager.State.Failed -> quietUpdateCheck = false
+            else -> Unit
+        }
     }
     // Not over the player, and not over setup: both own the whole screen for a reason.
     if (updateRequired && !fullscreen) {

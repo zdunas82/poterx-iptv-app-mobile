@@ -48,6 +48,9 @@ fun LockedAccountPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koi
     val sourceRepository = koinInject<tv.own.owntv.core.repository.SourceRepository>()
     val profileDao = koinInject<tv.own.owntv.core.database.dao.ProfileDao>()
     val epgStore = koinInject<tv.own.owntv.core.epg.EpgSourceStore>()
+    val epgRepository = koinInject<tv.own.owntv.core.repository.EpgRepository>()
+    val catalogSyncScheduler = koinInject<tv.own.owntv.core.sync.work.CatalogSyncScheduler>()
+    val epgSyncScheduler = koinInject<tv.own.owntv.core.sync.work.EpgSyncScheduler>()
     val settings = koinInject<tv.own.owntv.core.settings.SettingsRepository>()
     val telemetry = koinInject<PoterxTelemetry>()
     val contact = LockedSource.account?.contact.orEmpty()
@@ -178,7 +181,7 @@ fun LockedAccountPage(modifier: Modifier = Modifier, vm: SettingsViewModel = koi
             // composition, which cancels this scope: the rest of the sign-out must run regardless.
             withContext(NonCancellable) {
                 runCatching { vm.dismissSourceTest() }
-                runCatching { PoterxAccount.signOut(sourceDao, sourceRepository, profileDao, epgStore, settings) }
+                runCatching { PoterxAccount.signOut(sourceDao, sourceRepository, profileDao, epgStore, epgRepository, settings, catalogSyncScheduler, epgSyncScheduler) }
             }
             signingOut = false
         }
